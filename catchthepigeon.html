@@ -307,14 +307,30 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        let width = canvas.width = window.innerWidth;
-        let height = canvas.height = window.innerHeight;
+        let width = 0;
+        let height = 0;
 
-        window.addEventListener('resize', () => {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+        // Keep the canvas bitmap exactly in sync with its on-screen CSS box.
+        // On mobile 100vh != window.innerHeight (browser toolbar), so the old
+        // innerWidth/innerHeight sizing stretched the bitmap and made taps land
+        // off-target. Also scaled by devicePixelRatio for crisp rendering while
+        // game logic keeps working in CSS pixels.
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            width = Math.max(1, rect.width);
+            height = Math.max(1, rect.height);
+            canvas.width = Math.round(width * dpr);
+            canvas.height = Math.round(height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             initPowerLines();
-        });
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        // Mobile browsers resize the visual viewport (URL bar show/hide) too
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', resizeCanvas);
+        }
 
         // Game state variables
         let isPlaying = false;
@@ -759,16 +775,31 @@
         }
 
         // --- INPUTS & CROSSHAIR RETICLE ---
+        // Map a client (screen) point to canvas game coordinates. The canvas
+        // bitmap can be scaled relative to its CSS box (browser chrome, zoom), so
+        // convert through the element's real rectangle for pixel-perfect input.
+        function toCanvasCoords(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (clientX - rect.left) * (width / rect.width),
+                y: (clientY - rect.top) * (height / rect.height)
+            };
+        }
+
         function handleInput() {
+            let lastTouchTime = 0;
+
             window.addEventListener('mousemove', (e) => {
-                mouse.x = e.clientX;
-                mouse.y = e.clientY;
+                const p = toCanvasCoords(e.clientX, e.clientY);
+                mouse.x = p.x;
+                mouse.y = p.y;
             });
 
             window.addEventListener('touchmove', (e) => {
                 if (e.touches.length > 0) {
-                    mouse.x = e.touches[0].clientX;
-                    mouse.y = e.touches[0].clientY;
+                    const p = toCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+                    mouse.x = p.x;
+                    mouse.y = p.y;
                 }
             }, { passive: true });
 
@@ -783,12 +814,24 @@
                 updateHUD();
             };
 
-            canvas.addEventListener('mousedown', (e) => triggerLaunch(e.clientX, e.clientY));
+            canvas.addEventListener('mousedown', (e) => {
+                // Ignore the ghost mouse event browsers synthesize after a tap,
+                // which was causing a double shot on mobile.
+                if (performance.now() - lastTouchTime < 800) return;
+                const p = toCanvasCoords(e.clientX, e.clientY);
+                triggerLaunch(p.x, p.y);
+            });
+
             canvas.addEventListener('touchstart', (e) => {
+                lastTouchTime = performance.now();
+                e.preventDefault(); // blocks synthetic mousedown/click -> single shot per tap
                 if (e.touches.length > 0) {
-                    triggerLaunch(e.touches[0].clientX, e.touches[0].clientY);
+                    const p = toCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+                    mouse.x = p.x;
+                    mouse.y = p.y;
+                    triggerLaunch(p.x, p.y);
                 }
-            }, { passive: true });
+            }, { passive: false });
         }
 
         function drawCrosshair(ctx) {
@@ -1309,7 +1352,7 @@
 
         // Init Setup
         handleInput();
-        initPowerLines();
+        resizeCanvas(); // sizes the canvas and calls initPowerLines()
         HighScores.load().then(() => {
             renderLeaderboard('startLeaderboard');
             renderLeaderboard('gameOverLeaderboard');
