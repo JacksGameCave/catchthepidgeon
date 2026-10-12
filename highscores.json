@@ -176,6 +176,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "JACK",
+    "score": 49500,
+    "hits": 34,
+    "accuracy": 89,
+    "combo": 20,
+    "date": "2026-10-12"
+  },
+  {
     "name": "MOBILE",
     "score": 43550,
     "hits": 46,
