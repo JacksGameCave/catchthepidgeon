@@ -24,6 +24,22 @@
     "date": "2026-10-12"
   },
   {
+    "name": "MADD",
+    "score": 51150,
+    "hits": 39,
+    "accuracy": 75,
+    "combo": 20,
+    "date": "2026-10-12"
+  },
+  {
+    "name": "MADS",
+    "score": 51150,
+    "hits": 39,
+    "accuracy": 75,
+    "combo": 20,
+    "date": "2026-10-12"
+  },
+  {
     "name": "MOBILE",
     "score": 43550,
     "hits": 46,
