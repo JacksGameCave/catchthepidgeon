@@ -89,8 +89,8 @@
 </head>
 <body class="flex flex-col justify-between items-center select-none">
 
-    <!-- Top HUD Overlay -->
-    <div class="absolute top-0 left-0 right-0 p-4 md:p-6 z-20 flex justify-between items-start pointer-events-none">
+    <!-- Bottom HUD Overlay (keeps the top power line clear on mobile) -->
+    <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 z-20 flex justify-between items-end pointer-events-none">
         <!-- Left Stats (Score, Combo, Wind) -->
         <div class="flex flex-col gap-2">
             <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-3 px-5 text-white shadow-xl flex items-center gap-4 pointer-events-auto">
@@ -178,6 +178,9 @@
                 <div id="startLeaderboard" class="lb-scroll bg-slate-800/60 border border-slate-700/50 rounded-2xl p-2 space-y-1 max-h-44 overflow-y-auto">
                     <div class="text-slate-500 text-xs text-center py-2">Loading...</div>
                 </div>
+                <div id="myBestLine" class="mt-2 text-[11px] text-slate-400 text-center hidden">
+                    Your best: <span id="myBestText" class="text-amber-400 font-bold"></span>
+                </div>
             </div>
         </div>
 
@@ -211,8 +214,8 @@
             <!-- High Score Entry -->
             <div id="scoreSubmitBox" class="w-full mb-4 hidden">
                 <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left">
-                    <div class="text-xs font-black uppercase tracking-widest text-amber-400 mb-1">
-                        <i class="fa-solid fa-star"></i> NEW HIGH SCORE!
+                    <div id="scoreSubmitLabel" class="text-xs font-black uppercase tracking-widest text-amber-400 mb-1">
+                        <i class="fa-solid fa-star"></i> TOP 1000 SCORE!
                     </div>
                     <p class="text-[11px] text-slate-400 mb-3">Enter your name to claim a spot on the board:</p>
                     <div class="flex gap-2">
@@ -237,7 +240,7 @@
                     <div class="text-xs font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
                         <i class="fa-solid fa-ranking-star"></i> Leaderboard
                     </div>
-                    <span class="text-[9px] uppercase tracking-wider text-slate-500 font-mono">top 10</span>
+                    <span class="text-[9px] uppercase tracking-wider text-slate-500 font-mono">top 10 of 1000</span>
                 </div>
                 <div id="gameOverLeaderboard" class="lb-scroll bg-slate-800/60 border border-slate-700/50 rounded-2xl p-2 space-y-1 max-h-48 overflow-y-auto">
                     <div class="text-slate-500 text-xs text-center py-2">Loading...</div>
@@ -1073,8 +1076,10 @@
             await HighScores.load();
             const madeBoard = HighScores.qualifies(score);
             document.getElementById('gameOverSub').innerText = madeBoard
-                ? 'You made the leaderboard \u2014 claim your spot!'
-                : 'Great marksmanship out there!';
+                ? 'You made the top 1000 \u2014 claim your spot!'
+                : score > 0
+                    ? 'Not quite the top 1000 this time \u2014 try again!'
+                    : 'Great marksmanship out there!';
 
             renderLeaderboard('gameOverLeaderboard');
             const submitBox = document.getElementById('scoreSubmitBox');
@@ -1082,6 +1087,11 @@
             if (madeBoard) {
                 submitBox.classList.remove('hidden');
                 savedNote.classList.add('hidden');
+                const lastShown = HighScores.entries[HighScores.entries.length - 1];
+                const isTopTen = HighScores.total < 10 || !lastShown || score > lastShown.score;
+                document.getElementById('scoreSubmitLabel').innerHTML = isTopTen
+                    ? '<i class="fa-solid fa-star"></i> NEW TOP 10 SCORE!'
+                    : '<i class="fa-solid fa-ranking-star"></i> TOP 1000 SCORE!';
                 const nameInput = document.getElementById('playerNameInput');
                 nameInput.value = localStorage.getItem('pigeonPatrolLastName') || '';
                 setTimeout(() => nameInput.focus(), 250);
@@ -1264,10 +1274,14 @@
             // 'https://catchthepigeon.onrender.com') and the game works from any
             // static host: scores are posted to the server, which commits the
             // updated highscores.json back into the GitHub repo.
-            apiBase: '',
+            apiBase: 'https://catchthepigeon.onrender.com',
             mode: 'unknown', // 'server' | 'static' | 'local'
-            entries: [],
-            limit: 10,
+            entries: [],     // top scores for display
+            total: 0,        // how many scores are on the board
+            cutoff: null,    // score of 1000th place; null while the board isn't full
+            lastRank: null,  // rank earned by the most recent saved score
+            limit: 10,       // rows shown in the UI
+            cap: 1000,       // board capacity - anyone in the top 1000 can save
 
             apiUrls() {
                 // Same-origin first (served by server.js), then the configured
@@ -1275,6 +1289,23 @@
                 const bases = [''];
                 if (this.apiBase) bases.push(this.apiBase.replace(/\/+$/, ''));
                 return bases.map(b => `${b}/api/scores`);
+            },
+
+            // Take an API payload: top rows for display + board size info
+            applyPayload(data) {
+                this.entries = (data && Array.isArray(data.scores)) ? data.scores : [];
+                this.total = (data && Number.isFinite(data.total)) ? data.total : this.entries.length;
+                this.cutoff = (data && typeof data.cutoff === 'number') ? data.cutoff : null;
+                return this.entries;
+            },
+
+            // Take a full list (static file / browser storage)
+            setFullList(list) {
+                const sorted = list.slice().sort((a, b) => b.score - a.score);
+                this.total = sorted.length;
+                this.cutoff = sorted.length >= this.cap ? sorted[this.cap - 1].score : null;
+                this.entries = sorted.slice(0, this.limit);
+                return this.entries;
             },
 
             async load() {
@@ -1285,9 +1316,8 @@
                         if (res.ok) {
                             const data = await res.json();
                             if (data && Array.isArray(data.scores)) {
-                                this.entries = data.scores;
                                 this.mode = 'server';
-                                return this.entries;
+                                return this.applyPayload(data);
                             }
                         }
                     } catch (err) { /* try next source */ }
@@ -1299,20 +1329,18 @@
                     if (res.ok) {
                         const data = await res.json();
                         const list = Array.isArray(data) ? data : (data && Array.isArray(data.scores) ? data.scores : []);
-                        this.entries = list.slice().sort((a, b) => b.score - a.score);
                         this.mode = 'static';
-                        return this.entries;
+                        return this.setFullList(list);
                     }
                 } catch (err) { /* try next source */ }
 
                 // 3) browser storage fallback
                 this.mode = 'local';
                 try {
-                    this.entries = JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]');
+                    return this.setFullList(JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]'));
                 } catch (e) {
-                    this.entries = [];
+                    return this.setFullList([]);
                 }
-                return this.entries;
             },
 
             async submit(entry) {
@@ -1326,23 +1354,31 @@
                         });
                         if (res.ok) {
                             const data = await res.json();
-                            this.entries = (data && Array.isArray(data.scores)) ? data.scores : this.entries;
-                            return this.entries;
+                            if (data && Array.isArray(data.scores)) {
+                                this.mode = 'server';
+                                this.lastRank = Number.isFinite(data.rank) ? data.rank : null;
+                                return this.applyPayload(data);
+                            }
                         }
                     } catch (e) { /* try next source */ }
                 }
 
+                // Local fallback: keep the board in browser storage
                 this.mode = 'local';
-                this.entries.push(entry);
-                this.entries.sort((a, b) => b.score - a.score);
-                this.entries = this.entries.slice(0, 50);
-                try { localStorage.setItem('pigeonPatrolScores', JSON.stringify(this.entries)); } catch (e) {}
-                return this.entries;
+                let full = [];
+                try { full = JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]'); } catch (e) {}
+                full.push(entry);
+                full.sort((a, b) => b.score - a.score);
+                full = full.slice(0, this.cap);
+                try { localStorage.setItem('pigeonPatrolScores', JSON.stringify(full)); } catch (e) {}
+                const idx = full.indexOf(entry);
+                this.lastRank = idx >= 0 ? idx + 1 : null;
+                return this.setFullList(full);
             },
 
             qualifies(score) {
                 if (score <= 0) return false;
-                return this.entries.length < this.limit || score > this.entries[this.limit - 1].score;
+                return this.total < this.cap || this.cutoff === null || score > this.cutoff;
             },
 
             top(n) { return this.entries.slice(0, n || this.limit); }
@@ -1354,7 +1390,28 @@
             }[c]));
         }
 
-        function renderLeaderboard(elementId, highlight) {
+        // 1 -> "1st", 55 -> "55th"
+        function ordinal(n) {
+            const suffixes = ['th', 'st', 'nd', 'rd'];
+            const v = n % 100;
+            return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+        }
+
+        function updateBestLine() {
+            let best = null;
+            try { best = JSON.parse(localStorage.getItem('pigeonPatrolBest') || 'null'); } catch (e) {}
+            const line = document.getElementById('myBestLine');
+            if (!line) return;
+            if (best && best.score > 0) {
+                document.getElementById('myBestText').textContent =
+                    `${ordinal(best.rank)} place \u2014 ${Number(best.score).toLocaleString()} pts`;
+                line.classList.remove('hidden');
+            } else {
+                line.classList.add('hidden');
+            }
+        }
+
+        function renderLeaderboard(elementId, highlight, extra) {
             const el = document.getElementById(elementId);
             if (!el) return;
             const list = HighScores.top(10);
@@ -1362,7 +1419,7 @@
                 el.innerHTML = '<div class="text-slate-500 text-xs text-center py-3">No scores yet &mdash; be the first!</div>';
                 return;
             }
-            el.innerHTML = list.map((e, i) => {
+            const rows = list.map((e, i) => {
                 const isMe = highlight && e.name === highlight.name && e.score === highlight.score;
                 const rankColor = i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500';
                 return `
@@ -1372,7 +1429,20 @@
                         <span class="text-[10px] text-slate-500 font-mono">${Number(e.hits || 0)} hits</span>
                         <span class="font-mono font-black text-sm text-amber-400">${Number(e.score || 0).toLocaleString()}</span>
                     </div>`;
-            }).join('');
+            });
+
+            // If the player placed outside the visible top 10, show their row too
+            if (extra && extra.rank && extra.rank > list.length && extra.entry) {
+                rows.push(`
+                    <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40">
+                        <span class="w-5 text-right font-black font-mono text-xs text-amber-400">${extra.rank}</span>
+                        <span class="flex-1 text-left font-bold text-amber-300 text-sm truncate">${escapeHtml(extra.entry.name)} (you)</span>
+                        <span class="text-[10px] text-slate-500 font-mono">${Number(extra.entry.hits || 0)} hits</span>
+                        <span class="font-mono font-black text-sm text-amber-400">${Number(extra.entry.score || 0).toLocaleString()}</span>
+                    </div>`);
+            }
+
+            el.innerHTML = rows.join('');
         }
 
         // --- BUTTON BINDINGS ---
@@ -1386,13 +1456,29 @@
             const entry = { name: name.toUpperCase(), score, hits, accuracy, combo: maxCombo };
             try { localStorage.setItem('pigeonPatrolLastName', name); } catch (e) {}
             await HighScores.submit(entry);
+
+            const rank = HighScores.lastRank;
             document.getElementById('scoreSubmitBox').classList.add('hidden');
             document.getElementById('scoreSavedNote').classList.remove('hidden');
-            document.getElementById('scoreSavedText').textContent = HighScores.mode === 'local'
-                ? 'Saved locally \u2014 score server unreachable'
-                : 'Score saved to the board!';
-            renderLeaderboard('gameOverLeaderboard', entry);
-            renderLeaderboard('startLeaderboard', entry);
+            const placeText = rank ? ` You placed ${ordinal(rank)} of ${HighScores.total}.` : '';
+            document.getElementById('scoreSavedText').textContent =
+                HighScores.mode === 'local'
+                    ? `Saved locally \u2014 score server unreachable.${placeText}`
+                    : `Score saved!${placeText}`;
+
+            renderLeaderboard('gameOverLeaderboard', entry, { entry, rank });
+            renderLeaderboard('startLeaderboard', entry, { entry, rank });
+
+            // Remember the personal best for the main menu
+            if (rank) {
+                let best = null;
+                try { best = JSON.parse(localStorage.getItem('pigeonPatrolBest') || 'null'); } catch (e) {}
+                if (!best || entry.score > best.score) {
+                    try { localStorage.setItem('pigeonPatrolBest', JSON.stringify({ name: entry.name, score: entry.score, rank })); } catch (e) {}
+                }
+                updateBestLine();
+            }
+
             sound.playCombo();
         });
 
@@ -1424,6 +1510,7 @@
         HighScores.load().then(() => {
             renderLeaderboard('startLeaderboard');
             renderLeaderboard('gameOverLeaderboard');
+            updateBestLine();
             const note = document.getElementById('scoreSourceNote');
             if (note) {
                 note.textContent = HighScores.mode === 'server' ? 'live server'

@@ -56,8 +56,8 @@ const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 const GITHUB_PATH = process.env.GITHUB_PATH || 'highscores.json';
 const GITHUB_API = process.env.GITHUB_API_BASE || 'https://api.github.com';
 const useGitHub = Boolean(GITHUB_TOKEN && GITHUB_REPO);
-const MAX_STORED = 100;   // entries kept in the file
-const TOP_N = 10;         // entries returned to the game
+const MAX_STORED = 1000;  // entries kept in the file (the full board)
+const TOP_N = 10;         // top entries returned for display
 
 const CONTENT_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -285,9 +285,19 @@ function sendFile(res, filePath) {
     });
 }
 
+// Top 10 for display, plus the board-size info the client needs to judge
+// whether a score belongs in the top 1000 and where it ranks.
+function scoreboardPayload(scores) {
+    return {
+        scores: scores.slice(0, TOP_N),
+        total: scores.length,
+        cutoff: scores.length >= MAX_STORED ? scores[MAX_STORED - 1].score : null,
+    };
+}
+
 async function handleScoresGet(res) {
     const scores = await readScores();
-    sendJSON(res, 200, { scores: scores.slice(0, TOP_N) });
+    sendJSON(res, 200, scoreboardPayload(scores));
 }
 
 async function handleScoresPost(req, res) {
@@ -317,10 +327,11 @@ async function handleScoresPost(req, res) {
         const scores = await readScores();
         scores.push(entry);
         scores.sort((a, b) => b.score - a.score);
+        const rank = scores.indexOf(entry) + 1; // 1-based position on the board
         const saved = await writeScores(scores);
         scheduleGitHubSync();
 
-        sendJSON(res, 200, { scores: saved.slice(0, TOP_N), saved: entry });
+        sendJSON(res, 200, { ...scoreboardPayload(saved), saved: entry, rank });
     });
 }
 
