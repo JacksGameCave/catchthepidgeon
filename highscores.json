@@ -40,6 +40,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "ACE",
+    "score": 3750,
+    "hits": 24,
+    "accuracy": 23,
+    "combo": 4,
+    "date": "2026-10-12"
+  },
+  {
     "name": "JULES",
     "score": 1300,
     "hits": 5,
