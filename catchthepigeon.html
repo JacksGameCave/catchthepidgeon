@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Catch The Pigeon</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,6 +36,29 @@
             touch-action: pan-y;
         }
 
+        /* True full-bleed game surface:
+           - 100dvh tracks the real mobile viewport as the browser toolbar moves
+           - position: fixed + zoom lock keeps the layout stable across rotation
+           - pan-y blocks pinch / double-tap zoom anywhere in the game */
+        html, body {
+            position: fixed;
+            inset: 0;
+            margin: 0;
+            width: 100vw;
+            height: 100vh; /* fallback */
+            height: 100dvh;
+            overflow: hidden;
+            touch-action: pan-y;
+        }
+
+        #gameCanvas, #modalOverlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh; /* fallback */
+            height: 100dvh;
+        }
+
         /* Subtle pulse for HUD badges */
         .badge-pulse {
             animation: pulse-glow 2s infinite ease-in-out;
@@ -64,7 +87,7 @@
         .lb-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
     </style>
 </head>
-<body class="w-screen h-screen flex flex-col justify-between items-center relative select-none">
+<body class="flex flex-col justify-between items-center select-none">
 
     <!-- Top HUD Overlay -->
     <div class="absolute top-0 left-0 right-0 p-4 md:p-6 z-20 flex justify-between items-start pointer-events-none">
@@ -1236,28 +1259,39 @@
         // so they survive server restarts. If the page is opened without the
         // server (file://), it falls back to browser localStorage.
         const HighScores = {
-            // Where score submissions go. Leave '' when the game is served by
-            // server.js. When hosted on GitHub Pages, set this to your server URL,
-            // e.g. 'https://catchthepigeon.onrender.com' - the server then commits the
+            // Remote score server for embeds (e.g. itch.io, GitHub Pages). Leave ''
+            // when the game is served by server.js. Set to your server URL (e.g.
+            // 'https://catchthepigeon.onrender.com') and the game works from any
+            // static host: scores are posted to the server, which commits the
             // updated highscores.json back into the GitHub repo.
             apiBase: '',
             mode: 'unknown', // 'server' | 'static' | 'local'
             entries: [],
             limit: 10,
 
-            apiUrl() { return `${this.apiBase}/api/scores`; },
+            apiUrls() {
+                // Same-origin first (served by server.js), then the configured
+                // remote server (game embedded on itch.io / GitHub Pages).
+                const bases = [''];
+                if (this.apiBase) bases.push(this.apiBase.replace(/\/+$/, ''));
+                return bases.map(b => `${b}/api/scores`);
+            },
 
             async load() {
-                // 1) live API (Node server, local or hosted)
-                try {
-                    const res = await fetch(this.apiUrl(), { headers: { 'Accept': 'application/json' } });
-                    if (res.ok) {
-                        const data = await res.json();
-                        this.entries = (data && Array.isArray(data.scores)) ? data.scores : [];
-                        this.mode = 'server';
-                        return this.entries;
-                    }
-                } catch (err) { /* try next source */ }
+                // 1) live API (Node server - same origin or remote)
+                for (const url of this.apiUrls()) {
+                    try {
+                        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && Array.isArray(data.scores)) {
+                                this.entries = data.scores;
+                                this.mode = 'server';
+                                return this.entries;
+                            }
+                        }
+                    } catch (err) { /* try next source */ }
+                }
 
                 // 2) static highscores.json (e.g. served by GitHub Pages)
                 try {
@@ -1283,18 +1317,20 @@
 
             async submit(entry) {
                 // Always try the server first so the score reaches the shared board.
-                try {
-                    const res = await fetch(this.apiUrl(), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(entry)
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        this.entries = (data && Array.isArray(data.scores)) ? data.scores : this.entries;
-                        return this.entries;
-                    }
-                } catch (e) { /* server unreachable: keep a local copy */ }
+                for (const url of this.apiUrls()) {
+                    try {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(entry)
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.entries = (data && Array.isArray(data.scores)) ? data.scores : this.entries;
+                            return this.entries;
+                        }
+                    } catch (e) { /* try next source */ }
+                }
 
                 this.mode = 'local';
                 this.entries.push(entry);
