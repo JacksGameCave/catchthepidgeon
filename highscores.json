@@ -408,6 +408,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "JACK",
+    "score": 32250,
+    "hits": 40,
+    "accuracy": 89,
+    "combo": 13,
+    "date": "2026-10-12"
+  },
+  {
     "name": "JACK!",
     "score": 31900,
     "hits": 23,
