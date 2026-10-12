@@ -40,6 +40,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "BIRD PATROL",
+    "score": 10200,
+    "hits": 33,
+    "accuracy": 25,
+    "combo": 5,
+    "date": "2026-10-12"
+  },
+  {
     "name": "ACE",
     "score": 3750,
     "hits": 24,
