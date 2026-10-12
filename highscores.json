@@ -38,5 +38,13 @@
     "accuracy": 75,
     "combo": 7,
     "date": "2026-10-12"
+  },
+  {
+    "name": "JULES",
+    "score": 1300,
+    "hits": 5,
+    "accuracy": 3,
+    "combo": 2,
+    "date": "2026-10-12"
   }
 ]
