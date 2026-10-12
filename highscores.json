@@ -1,6 +1,14 @@
 [
   {
     "name": "EPIC3000",
+    "score": 53900,
+    "hits": 34,
+    "accuracy": 87,
+    "combo": 21,
+    "date": "2026-10-12"
+  },
+  {
+    "name": "EPIC3000",
     "score": 42750,
     "hits": 32,
     "accuracy": 94,
