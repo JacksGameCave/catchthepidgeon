@@ -1,6 +1,14 @@
 [
   {
     "name": "BRETT",
+    "score": 29500,
+    "hits": 31,
+    "accuracy": 70,
+    "combo": 14,
+    "date": "2026-10-12"
+  },
+  {
+    "name": "BRETT",
     "score": 25250,
     "hits": 38,
     "accuracy": 73,
