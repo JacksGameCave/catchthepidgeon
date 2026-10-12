@@ -46,7 +46,7 @@ const PORT = process.env.PORT || 8000;
 const BASE_DIR = __dirname;
 const DATA_DIR = process.env.DATA_DIR || BASE_DIR;
 const SCORE_FILE = path.join(DATA_DIR, 'highscores.json');
-const DEFAULT_PAGE = path.join(BASE_DIR, 'PidgeonShooter.html');
+const DEFAULT_PAGE = path.join(BASE_DIR, 'catchthepigeon.html');
 
 // GitHub is the durable copy of the score board (the local file is a temporary
 // cache). GITHUB_TOKEN: fine-grained PAT with "Contents: Read and write" for that repo.
@@ -356,8 +356,8 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Static files: the game itself (default page: PidgeonShooter.html)
-    const rel = urlPath.replace(/^\/+/, '') || 'PidgeonShooter.html';
+    // Static files: the game itself (default page: catchthepigeon.html)
+    const rel = urlPath.replace(/^\/+/, '') || 'catchthepigeon.html';
     const target = path.resolve(BASE_DIR, rel);
     const safeTarget = target.startsWith(path.resolve(BASE_DIR) + path.sep) ? target : DEFAULT_PAGE;
     sendFile(res, fs.existsSync(safeTarget) && fs.statSync(safeTarget).isFile() ? safeTarget : DEFAULT_PAGE);

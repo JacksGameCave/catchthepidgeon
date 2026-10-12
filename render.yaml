@@ -8,7 +8,7 @@
 # so scores survive spin-down/wake cycles with a single instance and no database.
 services:
   - type: web
-    name: pigeon-patrol
+    name: catchthepigeon
     runtime: node
     plan: free
     autoDeploy: false   # important! score sync pushes commits - don't redeploy on them
@@ -19,7 +19,7 @@ services:
       - key: GITHUB_TOKEN
         sync: false
       - key: GITHUB_REPO
-        sync: false   # e.g. myuser/birdshooter
+        sync: false   # e.g. JacksGameCave/catchthepigeon
       - key: GITHUB_BRANCH
         value: main
       - key: GITHUB_PATH
