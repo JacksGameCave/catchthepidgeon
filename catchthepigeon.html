@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Line Shot: Pigeon Patrol</title>
+    <title>Catch The Pigeon</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for UI Icons -->
@@ -123,7 +123,7 @@
             <div class="w-20 h-20 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mb-5 text-amber-400 text-4xl shadow-inner">
                 <i class="fa-solid fa-feather-pointed"></i>
             </div>
-            <h1 class="text-4xl font-black text-white mb-2 tracking-tight">PIGEON PATROL</h1>
+            <h1 class="text-4xl font-black text-white mb-2 tracking-tight">CATCH THE PIGEON</h1>
             <p class="text-slate-400 text-sm mb-6 leading-relaxed">
                 Aim carefully! Rocks take <span class="text-amber-400 font-bold">1.2 seconds</span> to travel to the power lines. Lead moving pigeons and compensate for wind speed!
             </p>
@@ -135,7 +135,7 @@
             </div>
 
             <button id="startGameBtn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-lg rounded-2xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 cursor-pointer">
-                START PATROL
+                START GAME
             </button>
 
             <!-- High Score Board -->
@@ -157,7 +157,7 @@
             <div class="w-20 h-20 bg-indigo-500/10 border border-indigo-500/30 rounded-3xl flex items-center justify-center mb-4 text-indigo-400 text-4xl shadow-inner">
                 <i class="fa-solid fa-trophy"></i>
             </div>
-            <h2 class="text-3xl font-black text-white mb-1">PATROL COMPLETE</h2>
+            <h2 class="text-3xl font-black text-white mb-1">GAME COMPLETE</h2>
             <p id="gameOverSub" class="text-slate-400 text-sm mb-6">Great marksmanship out there!</p>
 
             <div class="grid grid-cols-2 gap-3 w-full mb-6">
@@ -1163,7 +1163,7 @@
         const HighScores = {
             // Where score submissions go. Leave '' when the game is served by
             // server.js. When hosted on GitHub Pages, set this to your server URL,
-            // e.g. 'https://pigeon-patrol.onrender.com' - the server then commits the
+            // e.g. 'https://catchthepigeon.onrender.com' - the server then commits the
             // updated highscores.json back into the GitHub repo.
             apiBase: '',
             mode: 'unknown', // 'server' | 'static' | 'local'

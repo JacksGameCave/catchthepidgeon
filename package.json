@@ -1,8 +1,8 @@
 {
-  "name": "pigeon-patrol",
+  "name": "catch-the-pigeon",
   "version": "1.0.0",
   "private": true,
-  "description": "Line Shot: Pigeon Patrol - canvas game with a persistent high score board",
+  "description": "Catch The Pigeon - canvas game with a persistent high score board",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

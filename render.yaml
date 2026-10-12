@@ -1,4 +1,4 @@
-# Render blueprint for Pigeon Patrol (free tier, temporary storage).
+# Render blueprint for Catch The Pigeon (free tier, temporary storage).
 #
 # Render's filesystem is temporary: highscores.json written locally is lost when
 # the instance spins down (~10 min of inactivity) or redeploys. GitHub is the

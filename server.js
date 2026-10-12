@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Pigeon Patrol - tiny high score server (Node standard library only, no npm install).
+ * Catch The Pigeon - tiny high score server (Node standard library only, no npm install).
  *
  * Run:
  *     node server.js
@@ -384,7 +384,7 @@ async function boot() {
 
     server.listen(PORT, HOST, () => {
         console.log('====================================================');
-        console.log('  Pigeon Patrol server');
+        console.log('  Catch The Pigeon server');
         console.log(`  Game:         http://localhost:${PORT}`);
         console.log(`  Score cache:  ${SCORE_FILE}`);
         console.log(`  GitHub copy:  ${useGitHub ? `${GITHUB_REPO}@${GITHUB_BRANCH}:${GITHUB_PATH}` : 'off (set GITHUB_TOKEN + GITHUB_REPO to enable)'}`);
