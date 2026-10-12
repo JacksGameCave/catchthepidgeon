@@ -329,6 +329,14 @@
   },
   {
     "name": "JACK",
+    "score": 31600,
+    "hits": 34,
+    "accuracy": 87,
+    "combo": 13,
+    "date": "2026-10-12"
+  },
+  {
+    "name": "JACK",
     "score": 31500,
     "hits": 36,
     "accuracy": 86,
