@@ -22,12 +22,18 @@
             font-family: 'Outfit', sans-serif;
             background-color: #0f172a;
             overflow: hidden;
-            touch-action: none;
         }
 
         /* Custom Crosshair Hide Cursor on Canvas */
         #gameCanvas {
             cursor: none;
+            /* No browser gestures (scroll/zoom/pull-to-refresh) while playing */
+            touch-action: none;
+        }
+
+        /* The modal is allowed to scroll on short screens (phones in landscape) */
+        #modalOverlay {
+            touch-action: pan-y;
         }
 
         /* Subtle pulse for HUD badges */
@@ -117,9 +123,9 @@
     <canvas id="gameCanvas" class="w-full h-full block absolute inset-0 z-0"></canvas>
 
     <!-- Start / Game Over Modal Overlays -->
-    <div id="modalOverlay" class="absolute inset-0 z-30 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div id="modalOverlay" class="absolute inset-0 z-30 bg-slate-950/80 backdrop-blur-md flex justify-center overflow-y-auto p-4">
         <!-- Start Screen -->
-        <div id="startCard" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center flex flex-col items-center">
+        <div id="startCard" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full my-auto shadow-2xl text-center flex flex-col items-center">
             <div class="w-20 h-20 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mb-5 text-amber-400 text-4xl shadow-inner">
                 <i class="fa-solid fa-feather-pointed"></i>
             </div>
@@ -153,7 +159,7 @@
         </div>
 
         <!-- Game Over Card (Hidden initially) -->
-        <div id="gameOverCard" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center flex-col items-center hidden">
+        <div id="gameOverCard" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full my-auto shadow-2xl text-center flex-col items-center hidden">
             <div class="w-20 h-20 bg-indigo-500/10 border border-indigo-500/30 rounded-3xl flex items-center justify-center mb-4 text-indigo-400 text-4xl shadow-inner">
                 <i class="fa-solid fa-trophy"></i>
             </div>
@@ -330,6 +336,21 @@
         // Mobile browsers resize the visual viewport (URL bar show/hide) too
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', resizeCanvas);
+        }
+
+        // Screen rotation: some mobile browsers fire orientationchange late (or
+        // not at all), so re-check shortly after and gameLoop re-checks every frame.
+        window.addEventListener('orientationchange', () => {
+            setTimeout(resizeCanvas, 150);
+            setTimeout(resizeCanvas, 400);
+        });
+
+        // Catch any viewport change the resize events missed (e.g. rotation)
+        function maybeResizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            if (Math.abs(rect.width - width) > 1 || Math.abs(rect.height - height) > 1) {
+                resizeCanvas();
+            }
         }
 
         // Game state variables
@@ -518,6 +539,15 @@
             return (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * startY;
         }
 
+        // --- SCREEN-SIZE-AWARE SPEED SCALING ---
+        // Pigeon speeds are tuned for a 1280px-wide tablet in landscape. On
+        // narrower screens (phones in portrait) the same px/s crossed the screen
+        // far too quickly, so movement scales with screen width: birds take about
+        // the same time to cross the screen on any device.
+        function speedScale() {
+            return Math.max(0.35, Math.min(1.4, width / 1280));
+        }
+
         // --- PIGEON TYPES & CLASS ---
         const PIGEON_TYPES = {
             STANDARD: { name: 'Standard Pigeon', points: 100, speed: 120, color: '#94a3b8', headColor: '#64748b', health: 1, scale: 1 },
@@ -554,14 +584,14 @@
                     // Flying pigeon setup
                     this.facing = Math.random() > 0.5 ? 1 : -1;
                     this.x = this.facing === 1 ? -40 : width + 40;
-                    this.vx = this.type.speed * this.facing;
+                    this.vx = this.type.speed * this.facing * speedScale();
                     // Random altitude around lines or above
                     const altitudeRatios = [0.2, 0.32, 0.48, 0.62];
                     const selectedRatio = altitudeRatios[Math.floor(Math.random() * altitudeRatios.length)];
                     this.y = height * selectedRatio + (Math.random() - 0.5) * 40;
                     // Slightly wavy trajectory for non-perched birds
                     this.waveFreq = Math.random() * 2 + 1;
-                    this.waveAmp = Math.random() * 20 + 5;
+                    this.waveAmp = (Math.random() * 20 + 5) * speedScale();
                     this.baseY = this.y;
                 }
 
@@ -1044,6 +1074,8 @@
         function gameLoop(now) {
             const dt = Math.min(0.05, (now - lastTime) / 1000); // Frame delta time
             lastTime = now;
+
+            maybeResizeCanvas(); // auto-resize on rotation or any viewport change
 
             // Clear Background with Day/Sky Gradient
             const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
