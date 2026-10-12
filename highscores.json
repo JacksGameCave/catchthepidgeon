@@ -288,6 +288,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "JACK",
+    "score": 47300,
+    "hits": 40,
+    "accuracy": 93,
+    "combo": 16,
+    "date": "2026-10-12"
+  },
+  {
     "name": "MOBILE",
     "score": 43550,
     "hits": 46,
