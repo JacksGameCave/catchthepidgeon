@@ -352,6 +352,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "USER",
+    "score": 43500,
+    "hits": 36,
+    "accuracy": 90,
+    "combo": 18,
+    "date": "2026-10-12"
+  },
+  {
     "name": "MADS",
     "score": 42850,
     "hits": 46,
