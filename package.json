@@ -1,0 +1,13 @@
+{
+  "name": "pigeon-patrol",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Line Shot: Pigeon Patrol - canvas game with a persistent high score board",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

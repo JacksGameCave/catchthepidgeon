@@ -1,0 +1,26 @@
+# Render blueprint for Pigeon Patrol (free tier, temporary storage).
+#
+# Render's filesystem is temporary: highscores.json written locally is lost when
+# the instance spins down (~10 min of inactivity) or redeploys. GitHub is the
+# durable copy of the scoreboard:
+#   - every score update is committed back to GITHUB_REPO (debounced, merged)
+#   - on boot the server pulls the latest highscores.json from the repo
+# so scores survive spin-down/wake cycles with a single instance and no database.
+services:
+  - type: web
+    name: pigeon-patrol
+    runtime: node
+    plan: free
+    autoDeploy: false   # important! score sync pushes commits - don't redeploy on them
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      # Fine-grained PAT with "Contents: Read and write" for the repo below.
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false   # e.g. myuser/birdshooter
+      - key: GITHUB_BRANCH
+        value: main
+      - key: GITHUB_PATH
+        value: highscores.json

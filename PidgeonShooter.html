@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Shot: Pigeon Patrol</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for UI Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for procedural synthesized sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Custom Crosshair Hide Cursor on Canvas */
+        #gameCanvas {
+            cursor: none;
+        }
+
+        /* Subtle pulse for HUD badges */
+        .badge-pulse {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4)); }
+            50% { transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8)); }
+        }
+
+        /* Score floating popup text animation */
+        .floating-score {
+            pointer-events: none;
+            animation: floatUpAndFade 0.8s ease-out forwards;
+        }
+
+        @keyframes floatUpAndFade {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            50% { opacity: 1; transform: translateY(-25px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-50px) scale(0.9); }
+        }
+
+        /* Leaderboard scroll area */
+        .lb-scroll::-webkit-scrollbar { width: 6px; }
+        .lb-scroll::-webkit-scrollbar-track { background: transparent; }
+        .lb-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between items-center relative select-none">
+
+    <!-- Top HUD Overlay -->
+    <div class="absolute top-0 left-0 right-0 p-4 md:p-6 z-20 flex justify-between items-start pointer-events-none">
+        <!-- Left Stats (Score, Combo, Wind) -->
+        <div class="flex flex-col gap-2">
+            <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-3 px-5 text-white shadow-xl flex items-center gap-4 pointer-events-auto">
+                <div>
+                    <div class="text-xs uppercase font-extrabold tracking-wider text-slate-400">Score</div>
+                    <div id="scoreText" class="text-3xl font-black text-amber-400 font-mono">000,000</div>
+                </div>
+                <div class="h-8 w-px bg-slate-700"></div>
+                <div>
+                    <div class="text-xs uppercase font-extrabold tracking-wider text-slate-400">Combo</div>
+                    <div id="comboText" class="text-2xl font-black text-emerald-400">x1</div>
+                </div>
+            </div>
+
+            <!-- Wind Gauge -->
+            <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-xl p-2.5 px-4 text-white shadow-lg flex items-center gap-3 w-fit pointer-events-auto">
+                <i class="fa-solid fa-wind text-sky-400 text-sm"></i>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Wind Speed</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-24 h-2 bg-slate-800 rounded-full overflow-hidden relative border border-slate-700">
+                            <div id="windBar" class="h-full bg-sky-400 rounded-full transition-all duration-300" style="width: 50%;"></div>
+                        </div>
+                        <span id="windDirText" class="text-xs font-mono font-bold text-sky-300">0 mph</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Wave / Timer Info -->
+        <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-3 px-6 text-center text-white shadow-xl pointer-events-auto">
+            <div id="waveLabel" class="text-xs font-black uppercase tracking-widest text-indigo-400">WAVE 1</div>
+            <div id="timerText" class="text-3xl font-black font-mono text-white">60s</div>
+        </div>
+
+        <!-- Right Stats (Accuracy, Sound Toggle, Pause) -->
+        <div class="flex items-start gap-3 pointer-events-auto">
+            <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-3 px-5 text-right text-white shadow-xl">
+                <div class="text-xs uppercase font-extrabold tracking-wider text-slate-400">Accuracy</div>
+                <div id="accuracyText" class="text-2xl font-black text-sky-400 font-mono">100%</div>
+            </div>
+
+            <button id="audioBtn" class="bg-slate-900/80 backdrop-blur-md hover:bg-slate-800 border border-slate-700/60 rounded-2xl w-12 h-12 flex items-center justify-center text-amber-400 text-lg shadow-xl transition active:scale-95">
+                <i id="audioIcon" class="fa-solid fa-volume-high"></i>
+            </button>
+            <button id="pauseBtn" class="bg-slate-900/80 backdrop-blur-md hover:bg-slate-800 border border-slate-700/60 rounded-2xl w-12 h-12 flex items-center justify-center text-slate-200 text-lg shadow-xl transition active:scale-95">
+                <i class="fa-solid fa-pause"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game Canvas -->
+    <canvas id="gameCanvas" class="w-full h-full block absolute inset-0 z-0"></canvas>
+
+    <!-- Start / Game Over Modal Overlays -->
+    <div id="modalOverlay" class="absolute inset-0 z-30 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <!-- Start Screen -->
+        <div id="startCard" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center flex flex-col items-center">
+            <div class="w-20 h-20 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mb-5 text-amber-400 text-4xl shadow-inner">
+                <i class="fa-solid fa-feather-pointed"></i>
+            </div>
+            <h1 class="text-4xl font-black text-white mb-2 tracking-tight">PIGEON PATROL</h1>
+            <p class="text-slate-400 text-sm mb-6 leading-relaxed">
+                Aim carefully! Rocks take <span class="text-amber-400 font-bold">1.2 seconds</span> to travel to the power lines. Lead moving pigeons and compensate for wind speed!
+            </p>
+
+            <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 w-full mb-6 text-left text-xs text-slate-300 space-y-2">
+                <div class="flex items-center gap-2"><i class="fa-solid fa-crosshair text-amber-400"></i> <span><strong>Predict Flight:</strong> Target reticle shows where rock lands in 1.2s.</span></div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-wind text-sky-400"></i> <span><strong>Wind Factor:</strong> Crosswind drifts your rock off target.</span></div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-bolt text-emerald-400"></i> <span><strong>Pigeon Types:</strong> Doves fly fast, Armored birds need 2 hits!</span></div>
+            </div>
+
+            <button id="startGameBtn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-lg rounded-2xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 cursor-pointer">
+                START PATROL
+            </button>
+
+            <!-- High Score Board -->
+            <div class="w-full mt-6">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+                        <i class="fa-solid fa-ranking-star"></i> High Scores
+                    </div>
+                    <span id="scoreSourceNote" class="text-[9px] uppercase tracking-wider text-slate-500 font-mono"></span>
+                </div>
+                <div id="startLeaderboard" class="lb-scroll bg-slate-800/60 border border-slate-700/50 rounded-2xl p-2 space-y-1 max-h-44 overflow-y-auto">
+                    <div class="text-slate-500 text-xs text-center py-2">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Card (Hidden initially) -->
+        <div id="gameOverCard" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center flex-col items-center hidden">
+            <div class="w-20 h-20 bg-indigo-500/10 border border-indigo-500/30 rounded-3xl flex items-center justify-center mb-4 text-indigo-400 text-4xl shadow-inner">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="text-3xl font-black text-white mb-1">PATROL COMPLETE</h2>
+            <p id="gameOverSub" class="text-slate-400 text-sm mb-6">Great marksmanship out there!</p>
+
+            <div class="grid grid-cols-2 gap-3 w-full mb-6">
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-3">
+                    <div class="text-[10px] font-bold uppercase text-slate-400">Final Score</div>
+                    <div id="finalScore" class="text-2xl font-black text-amber-400">0</div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-3">
+                    <div class="text-[10px] font-bold uppercase text-slate-400">Accuracy</div>
+                    <div id="finalAccuracy" class="text-2xl font-black text-sky-400">0%</div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-3">
+                    <div class="text-[10px] font-bold uppercase text-slate-400">Birds Hit</div>
+                    <div id="finalHits" class="text-2xl font-black text-emerald-400">0</div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-3">
+                    <div class="text-[10px] font-bold uppercase text-slate-400">Max Combo</div>
+                    <div id="finalCombo" class="text-2xl font-black text-purple-400">x0</div>
+                </div>
+            </div>
+
+            <!-- High Score Entry -->
+            <div id="scoreSubmitBox" class="w-full mb-4 hidden">
+                <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left">
+                    <div class="text-xs font-black uppercase tracking-widest text-amber-400 mb-1">
+                        <i class="fa-solid fa-star"></i> NEW HIGH SCORE!
+                    </div>
+                    <p class="text-[11px] text-slate-400 mb-3">Enter your name to claim a spot on the board:</p>
+                    <div class="flex gap-2">
+                        <input id="playerNameInput" type="text" maxlength="14" placeholder="YOUR NAME"
+                               class="flex-1 min-w-0 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm font-bold uppercase tracking-wide outline-none focus:border-amber-500 transition" />
+                        <button id="saveScoreBtn" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-xl transition transform active:scale-95 cursor-pointer">
+                            SAVE
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="scoreSavedNote" class="w-full mb-4 hidden">
+                <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl py-2.5 text-emerald-400 text-xs font-bold uppercase tracking-widest">
+                    <i class="fa-solid fa-circle-check"></i> <span id="scoreSavedText">Score saved to the board!</span>
+                </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div id="gameOverLeaderboardWrap" class="w-full mb-5">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+                        <i class="fa-solid fa-ranking-star"></i> Leaderboard
+                    </div>
+                    <span class="text-[9px] uppercase tracking-wider text-slate-500 font-mono">top 10</span>
+                </div>
+                <div id="gameOverLeaderboard" class="lb-scroll bg-slate-800/60 border border-slate-700/50 rounded-2xl p-2 space-y-1 max-h-48 overflow-y-auto">
+                    <div class="text-slate-500 text-xs text-center py-2">Loading...</div>
+                </div>
+            </div>
+
+            <button id="restartGameBtn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-lg rounded-2xl shadow-lg shadow-emerald-500/20 transition transform active:scale-95 cursor-pointer">
+                PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- SOUND SYSTEM USING TONE.JS ---
+        class SoundFX {
+            constructor() {
+                this.enabled = true;
+                this.initialized = false;
+            }
+
+            init() {
+                if (this.initialized) return;
+                try {
+                    Tone.start();
+                    // Rock Launch Whoosh
+                    this.whooshSynth = new Tone.NoiseSynth({
+                        noise: { type: 'pink' },
+                        envelope: { attack: 0.02, decay: 0.25, sustain: 0 }
+                    }).toDestination();
+                    this.whooshSynth.volume.value = -12;
+
+                    // Rock Impact Thud
+                    this.impactSynth = new Tone.MembraneSynth({
+                        pitchDecay: 0.05,
+                        octaves: 4,
+                        oscillator: { type: 'sine' },
+                        envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }
+                    }).toDestination();
+                    this.impactSynth.volume.value = -6;
+
+                    // Pigeon Hit Squawk / Feather Pop
+                    this.squawkSynth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: 'triangle' },
+                        envelope: { attack: 0.01, decay: 0.15, sustain: 0 }
+                    }).toDestination();
+                    this.squawkSynth.volume.value = -10;
+
+                    // Level Up / Combo Bell
+                    this.bellSynth = new Tone.MetalSynth({
+                        frequency: 440,
+                        envelope: { attack: 0.001, decay: 0.4, release: 0.2 },
+                        harmonicity: 5.1,
+                        modulationIndex: 16,
+                        resonance: 4000,
+                        octaves: 1.5
+                    }).toDestination();
+                    this.bellSynth.volume.value = -18;
+
+                    this.initialized = true;
+                } catch (e) {
+                    console.log('Audio init postponed:', e);
+                }
+            }
+
+            playThrow() {
+                if (!this.enabled || !this.initialized) return;
+                try { this.whooshSynth.triggerAttackRelease("16n"); } catch(e){}
+            }
+
+            playImpact() {
+                if (!this.enabled || !this.initialized) return;
+                try { this.impactSynth.triggerAttackRelease("C2", "8n"); } catch(e){}
+            }
+
+            playHit(combo = 1) {
+                if (!this.enabled || !this.initialized) return;
+                try {
+                    const notes = ["E5", "G5", "B5", "E6"];
+                    const note = notes[Math.min(combo - 1, notes.length - 1)] || "G5";
+                    this.squawkSynth.triggerAttackRelease([note, "C5"], "16n");
+                } catch(e){}
+            }
+
+            playCombo() {
+                if (!this.enabled || !this.initialized) return;
+                try { this.bellSynth.triggerAttackRelease("C6", "8n"); } catch(e){}
+            }
+        }
+
+        const sound = new SoundFX();
+
+        // --- GAME CONSTANTS & STATE ---
+        const FLIGHT_TIME = 1.2; // seconds for rock to hit target height
+        const HIT_RADIUS = 28;    // pixel tolerance for rock hit
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            initPowerLines();
+        });
+
+        // Game state variables
+        let isPlaying = false;
+        let isPaused = false;
+        let gameTime = 60;
+        let timerInterval = null;
+        let score = 0;
+        let combo = 1;
+        let totalShots = 0;
+        let hits = 0;
+        let maxCombo = 1;
+        let wave = 1;
+        let windSpeed = 0; // Negative = Left, Positive = Right (-100 to 100)
+
+        // Mouse & Crosshair
+        const mouse = { x: width / 2, y: height / 2, down: false };
+
+        // Entities
+        let rocks = [];
+        let pigeons = [];
+        let particles = [];
+        let scorePopups = [];
+        let powerLines = [];
+        let clouds = [];
+
+        // --- PARTICLE & VISUAL EFFECTS ENGINE ---
+        class FeatherParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 180;
+                this.vy = (Math.random() - 0.8) * 160;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.vRot = (Math.random() - 0.5) * 8;
+                this.size = Math.random() * 8 + 6;
+                this.color = color || '#cbd5e1';
+                this.life = 1.0;
+                this.decay = Math.random() * 0.5 + 0.6; // opacity loss rate
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.vy += 120 * dt; // Gravity
+                this.vx *= 0.98; // Air resistance
+                this.rotation += this.vRot * dt;
+                this.life -= this.decay * dt;
+            }
+
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                
+                // Draw feather shape
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size, this.size / 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class SparkParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 250;
+                this.vy = (Math.random() - 0.5) * 250;
+                this.size = Math.random() * 4 + 2;
+                this.life = 1.0;
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.life -= 2.5 * dt;
+            }
+
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color = '#f59e0b') {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.life = 1.0;
+                this.vy = -60;
+            }
+
+            update(dt) {
+                this.y += this.vy * dt;
+                this.life -= 1.2 * dt;
+            }
+
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.font = '900 22px Outfit, sans-serif';
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 4;
+                ctx.strokeText(this.text, this.x, this.y);
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        // --- POWER LINES SYSTEM ---
+        function initPowerLines() {
+            powerLines = [
+                { yRatio: 0.28, slack: 25, vibration: 0, lineIndex: 0 },
+                { yRatio: 0.42, slack: 35, vibration: 0, lineIndex: 1 },
+                { yRatio: 0.56, slack: 20, vibration: 0, lineIndex: 2 }
+            ];
+        }
+
+        function drawPowerLines(ctx, dt) {
+            ctx.save();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#1e293b';
+
+            powerLines.forEach((line) => {
+                if (line.vibration > 0) line.vibration -= dt * 15;
+
+                const startY = height * line.yRatio;
+                const endY = height * line.yRatio;
+                const midY = height * line.yRatio + line.slack + Math.sin(Date.now() * 0.02) * line.vibration;
+
+                ctx.beginPath();
+                ctx.moveTo(0, startY);
+                ctx.quadraticCurveTo(width / 2, midY, width, endY);
+                ctx.stroke();
+
+                // Double wire visual depth
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#475569';
+                ctx.beginPath();
+                ctx.moveTo(0, startY - 3);
+                ctx.quadraticCurveTo(width / 2, midY - 3, width, endY - 3);
+                ctx.stroke();
+            });
+
+            // Draw Utility Poles on Left and Right
+            const poleWidth = 24;
+            ctx.fillStyle = '#334155';
+            
+            // Left Pole
+            ctx.fillRect(10, height * 0.15, poleWidth, height * 0.85);
+            // Right Pole
+            ctx.fillRect(width - 10 - poleWidth, height * 0.15, poleWidth, height * 0.85);
+
+            // Pole Crossbars
+            ctx.fillStyle = '#1e293b';
+            [0.28, 0.42, 0.56].forEach(ratio => {
+                ctx.fillRect(0, height * ratio - 6, 45, 12);
+                ctx.fillRect(width - 45, height * ratio - 6, 45, 12);
+            });
+
+            ctx.restore();
+        }
+
+        // Helper to evaluate Y position on a power line given X coordinate
+        function getLineYAtX(lineIndex, x) {
+            const line = powerLines[lineIndex];
+            if (!line) return height * 0.4;
+            const startY = height * line.yRatio;
+            const midY = height * line.yRatio + line.slack;
+            const t = x / width;
+            // Quadratic Bezier formula B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+            return (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * startY;
+        }
+
+        // --- PIGEON TYPES & CLASS ---
+        const PIGEON_TYPES = {
+            STANDARD: { name: 'Standard Pigeon', points: 100, speed: 120, color: '#94a3b8', headColor: '#64748b', health: 1, scale: 1 },
+            DOVE: { name: 'Speedy Dove', points: 250, speed: 260, color: '#f8fafc', headColor: '#e2e8f0', health: 1, scale: 0.85 },
+            GOLDEN: { name: 'Golden Pigeon', points: 500, speed: 180, color: '#f59e0b', headColor: '#fbbf24', health: 1, scale: 1.1 },
+            ARMORED: { name: 'Helmet Pigeon', points: 300, speed: 90, color: '#475569', headColor: '#94a3b8', health: 2, scale: 1.15 }
+        };
+
+        class Pigeon {
+            constructor(typeKey, isPerched = false) {
+                this.type = PIGEON_TYPES[typeKey] || PIGEON_TYPES.STANDARD;
+                this.typeKey = typeKey;
+                this.isPerched = isPerched;
+                this.health = this.type.health;
+
+                this.x = 0;
+                this.y = 0;
+                this.vx = 0;
+                this.vy = 0;
+                this.lineIndex = Math.floor(Math.random() * 3);
+
+                this.wingAngle = 0;
+                this.wingDir = 1;
+                this.facing = 1; // 1 = Right, -1 = Left
+                this.state = 'ALIVE'; // ALIVE, HIT, FALLING
+                this.peckTimer = Math.random() * 3;
+                this.isPecking = false;
+
+                if (this.isPerched) {
+                    this.x = 80 + Math.random() * (width - 160);
+                    this.y = getLineYAtX(this.lineIndex, this.x) - 14 * this.type.scale;
+                    this.facing = Math.random() > 0.5 ? 1 : -1;
+                } else {
+                    // Flying pigeon setup
+                    this.facing = Math.random() > 0.5 ? 1 : -1;
+                    this.x = this.facing === 1 ? -40 : width + 40;
+                    this.vx = this.type.speed * this.facing;
+                    // Random altitude around lines or above
+                    const altitudeRatios = [0.2, 0.32, 0.48, 0.62];
+                    const selectedRatio = altitudeRatios[Math.floor(Math.random() * altitudeRatios.length)];
+                    this.y = height * selectedRatio + (Math.random() - 0.5) * 40;
+                    // Slightly wavy trajectory for non-perched birds
+                    this.waveFreq = Math.random() * 2 + 1;
+                    this.waveAmp = Math.random() * 20 + 5;
+                    this.baseY = this.y;
+                }
+
+                this.hitRadius = 24 * this.type.scale;
+            }
+
+            update(dt) {
+                if (this.state === 'ALIVE') {
+                    if (this.isPerched) {
+                        // Perched animation (head bobbing, pecking)
+                        this.peckTimer -= dt;
+                        if (this.peckTimer <= 0) {
+                            this.isPecking = !this.isPecking;
+                            this.peckTimer = Math.random() * 2 + 1;
+                        }
+                        // Update y to stay on catenary line in case of dynamic stretch
+                        this.y = getLineYAtX(this.lineIndex, this.x) - 12 * this.type.scale;
+                    } else {
+                        // Flying logic
+                        this.x += this.vx * dt;
+                        this.baseY += (Math.random() - 0.5) * 5 * dt;
+                        this.y = this.baseY + Math.sin(Date.now() * 0.003 * this.waveFreq) * this.waveAmp;
+
+                        // Wing flapping animation
+                        this.wingAngle += 12 * dt * this.wingDir;
+                        if (Math.abs(this.wingAngle) > 0.8) this.wingDir *= -1;
+                    }
+                } else if (this.state === 'FALLING') {
+                    // Tumble downwards when hit
+                    this.y += this.vy * dt;
+                    this.x += this.vx * dt;
+                    this.vy += 450 * dt; // Gravity fall
+                    this.wingAngle += 15 * dt; // Spin out of control
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.facing * this.type.scale, this.type.scale);
+
+                if (this.state === 'FALLING') {
+                    ctx.rotate(this.wingAngle);
+                }
+
+                // Helmet badge for Armored Type
+                if (this.typeKey === 'ARMORED' && this.health > 1) {
+                    ctx.fillStyle = '#64748b';
+                    ctx.beginPath();
+                    ctx.arc(6, -14, 10, Math.PI, 0);
+                    ctx.fill();
+                }
+
+                // Body
+                ctx.fillStyle = this.type.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 16, 11, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wing
+                ctx.fillStyle = this.type.headColor;
+                ctx.beginPath();
+                if (this.isPerched) {
+                    ctx.ellipse(-2, 2, 10, 6, -0.2, 0, Math.PI * 2);
+                } else {
+                    // Flapping Wing
+                    const wingOffsetY = Math.sin(this.wingAngle) * 12;
+                    ctx.moveTo(-4, 0);
+                    ctx.lineTo(-14, -14 + wingOffsetY);
+                    ctx.lineTo(2, -4);
+                }
+                ctx.fill();
+
+                // Head
+                ctx.fillStyle = this.type.headColor;
+                ctx.beginPath();
+                const headY = this.isPecking ? 4 : -10;
+                ctx.arc(10, headY, 7, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Beak
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath();
+                ctx.moveTo(16, headY - 2);
+                ctx.lineTo(22, headY + 1);
+                ctx.lineTo(16, headY + 4);
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(12, headY - 2, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(12.5, headY - 2, 1, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tail feathers
+                ctx.fillStyle = this.type.headColor;
+                ctx.beginPath();
+                ctx.moveTo(-14, -2);
+                ctx.lineTo(-24, -6);
+                ctx.lineTo(-22, 4);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            takeDamage(damage = 1) {
+                this.health -= damage;
+                if (this.health <= 0) {
+                    this.state = 'FALLING';
+                    this.vy = -120; // Pop up slightly when struck
+                    this.vx = (Math.random() - 0.5) * 80;
+                    return true; // Destroyed
+                }
+                return false; // Still alive (armored lost helmet)
+            }
+        }
+
+        // --- ROCK TRAJECTORY ENGINE ---
+        class Rock {
+            constructor(targetX, targetY) {
+                this.startX = width / 2;
+                this.startY = height + 20;
+                this.targetX = targetX;
+                this.targetY = targetY;
+
+                this.elapsed = 0;
+                this.duration = FLIGHT_TIME;
+                this.isDone = false;
+
+                // Rock visual properties
+                this.rotation = 0;
+                this.vRot = (Math.random() - 0.5) * 10;
+                this.size = 18;
+
+                // Calculate trajectory parameters
+                // High arc peak height
+                this.arcHeight = Math.min(180, Math.abs(this.startY - targetY) * 0.4);
+            }
+
+            update(dt) {
+                this.elapsed += dt;
+                this.rotation += this.vRot * dt;
+
+                if (this.elapsed >= this.duration) {
+                    this.elapsed = this.duration;
+                    this.isDone = true;
+                }
+            }
+
+            get currentPos() {
+                const p = Math.min(1.0, this.elapsed / this.duration);
+                
+                // Linear interpolation for X & Y base
+                let x = this.startX + (this.targetX - this.startX) * p;
+                let y = this.startY + (this.targetY - this.startY) * p;
+
+                // Parabolic Arc upward curve for depth perspective
+                const arc = Math.sin(p * Math.PI) * this.arcHeight;
+                y -= arc;
+
+                // Wind Drift effect applies over time
+                const windShift = (windSpeed * 1.2) * (p * p);
+                x += windShift;
+
+                // Scale decreases as rock travels into the distance plane
+                const scale = 1.0 - 0.65 * p;
+
+                return { x, y, scale, p, impactX: this.targetX + windSpeed * 1.2, impactY: this.targetY };
+            }
+
+            draw(ctx) {
+                const pos = this.currentPos;
+                ctx.save();
+                ctx.translate(pos.x, pos.y);
+                ctx.rotate(this.rotation);
+                ctx.scale(pos.scale, pos.scale);
+
+                // Rock Shadow / Glow
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.beginPath();
+                ctx.ellipse(0, 10, this.size, this.size * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Polygon Rock Shape
+                ctx.fillStyle = '#78350f';
+                ctx.strokeStyle = '#451a03';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-10, -5);
+                ctx.lineTo(2, -12);
+                ctx.lineTo(12, -4);
+                ctx.lineTo(10, 10);
+                ctx.lineTo(-4, 12);
+                ctx.lineTo(-12, 4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Highlight
+                ctx.fillStyle = '#9a3412';
+                ctx.beginPath();
+                ctx.arc(-2, -3, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // --- INPUTS & CROSSHAIR RETICLE ---
+        function handleInput() {
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            });
+
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    mouse.x = e.touches[0].clientX;
+                    mouse.y = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            const triggerLaunch = (x, y) => {
+                if (!isPlaying || isPaused) return;
+
+                sound.init();
+                sound.playThrow();
+
+                rocks.push(new Rock(x, y));
+                totalShots++;
+                updateHUD();
+            };
+
+            canvas.addEventListener('mousedown', (e) => triggerLaunch(e.clientX, e.clientY));
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    triggerLaunch(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+        }
+
+        function drawCrosshair(ctx) {
+            ctx.save();
+            ctx.translate(mouse.x, mouse.y);
+
+            // Outer ring
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 18, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Center dot
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(0, 0, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Crosshair ticks
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            // Top
+            ctx.moveTo(0, -22); ctx.lineTo(0, -12);
+            // Bottom
+            ctx.moveTo(0, 12); ctx.lineTo(0, 22);
+            // Left
+            ctx.moveTo(-22, 0); ctx.lineTo(-12, 0);
+            // Right
+            ctx.moveTo(12, 0); ctx.lineTo(22, 0);
+            ctx.stroke();
+
+            // Wind Offset Indicator Dot (Shows lead compensation required for wind)
+            if (Math.abs(windSpeed) > 5) {
+                const projectedWindX = windSpeed * 1.2;
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(projectedWindX, 0);
+                ctx.stroke();
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(projectedWindX, 0, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        // Draw active rock impact targets with 1.2s countdown ring indicator
+        function drawRockImpactReticles(ctx) {
+            rocks.forEach(rock => {
+                const remainingTime = Math.max(0, rock.duration - rock.elapsed);
+                const progress = rock.elapsed / rock.duration;
+                const impactX = rock.targetX + windSpeed * 1.2;
+                const impactY = rock.targetY;
+
+                ctx.save();
+                ctx.translate(impactX, impactY);
+
+                // Shrinking countdown ring
+                const ringRadius = 10 + (1 - progress) * 35;
+                ctx.strokeStyle = 'rgba(239, 68, 68, ' + (0.3 + progress * 0.7) + ')';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Target X marker
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+                ctx.beginPath();
+                ctx.moveTo(-6, -6); ctx.lineTo(6, 6);
+                ctx.moveTo(6, -6); ctx.lineTo(-6, 6);
+                ctx.stroke();
+
+                ctx.restore();
+            });
+        }
+
+        // --- GAME CONTROL & HUD LOGIC ---
+        function updateHUD() {
+            document.getElementById('scoreText').innerText = score.toString().padStart(6, '0');
+            document.getElementById('comboText').innerText = `x${combo}`;
+            
+            const accuracy = totalShots > 0 ? Math.round((hits / totalShots) * 100) : 100;
+            document.getElementById('accuracyText').innerText = `${accuracy}%`;
+
+            // Wind bar update
+            const windPercent = 50 + (windSpeed / 100) * 50;
+            document.getElementById('windBar').style.width = `${Math.max(5, Math.min(95, windPercent))}%`;
+            document.getElementById('windDirText').innerText = `${Math.abs(Math.round(windSpeed))} mph ${windSpeed >= 0 ? 'E' : 'W'}`;
+        }
+
+        function spawnPigeonsForWave() {
+            // Perched pigeons spawn on powerlines
+            const countPerched = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < countPerched; i++) {
+                const randType = Math.random() > 0.8 ? 'ARMORED' : 'STANDARD';
+                pigeons.push(new Pigeon(randType, true));
+            }
+        }
+
+        function managePigeonSpawns(dt) {
+            // Maintain flying pigeon presence
+            const activeFlying = pigeons.filter(p => !p.isPerched && p.state === 'ALIVE').length;
+            if (activeFlying < 3 + wave) {
+                if (Math.random() < 0.02) {
+                    const roll = Math.random();
+                    let typeKey = 'STANDARD';
+                    if (roll > 0.85) typeKey = 'GOLDEN';
+                    else if (roll > 0.60) typeKey = 'DOVE';
+                    else if (roll > 0.40) typeKey = 'ARMORED';
+
+                    pigeons.push(new Pigeon(typeKey, false));
+                }
+            }
+        }
+
+        function startNewWave() {
+            wave++;
+            gameTime = 60;
+            windSpeed = Math.floor((Math.random() - 0.5) * (40 + wave * 10));
+            document.getElementById('waveLabel').innerText = `WAVE ${wave}`;
+            spawnPigeonsForWave();
+            updateHUD();
+        }
+
+        function startGame() {
+            score = 0;
+            combo = 1;
+            maxCombo = 1;
+            totalShots = 0;
+            hits = 0;
+            wave = 1;
+            gameTime = 60;
+            windSpeed = Math.floor((Math.random() - 0.5) * 30);
+
+            rocks = [];
+            pigeons = [];
+            particles = [];
+            scorePopups = [];
+
+            initPowerLines();
+            spawnPigeonsForWave();
+            updateHUD();
+
+            isPlaying = true;
+            isPaused = false;
+
+            document.getElementById('modalOverlay').classList.add('hidden');
+            document.getElementById('startCard').classList.add('hidden');
+            document.getElementById('gameOverCard').classList.add('hidden');
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (isPlaying && !isPaused) {
+                    gameTime--;
+                    document.getElementById('timerText').innerText = `${gameTime}s`;
+                    if (gameTime <= 0) {
+                        endGame();
+                    }
+                }
+            }, 1000);
+        }
+
+        async function endGame() {
+            isPlaying = false;
+            if (timerInterval) clearInterval(timerInterval);
+
+            const accuracy = totalShots > 0 ? Math.round((hits / totalShots) * 100) : 0;
+
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalAccuracy').innerText = `${accuracy}%`;
+            document.getElementById('finalHits').innerText = hits;
+            document.getElementById('finalCombo').innerText = `x${maxCombo}`;
+
+            document.getElementById('modalOverlay').classList.remove('hidden');
+            document.getElementById('startCard').classList.add('hidden');
+            document.getElementById('gameOverCard').classList.remove('hidden');
+            document.getElementById('gameOverCard').classList.add('flex');
+
+            // --- High score board & name entry ---
+            await HighScores.load();
+            const madeBoard = HighScores.qualifies(score);
+            document.getElementById('gameOverSub').innerText = madeBoard
+                ? 'You made the leaderboard \u2014 claim your spot!'
+                : 'Great marksmanship out there!';
+
+            renderLeaderboard('gameOverLeaderboard');
+            const submitBox = document.getElementById('scoreSubmitBox');
+            const savedNote = document.getElementById('scoreSavedNote');
+            if (madeBoard) {
+                submitBox.classList.remove('hidden');
+                savedNote.classList.add('hidden');
+                const nameInput = document.getElementById('playerNameInput');
+                nameInput.value = localStorage.getItem('pigeonPatrolLastName') || '';
+                setTimeout(() => nameInput.focus(), 250);
+            } else {
+                submitBox.classList.add('hidden');
+                savedNote.classList.add('hidden');
+            }
+        }
+
+        // --- GAME LOOP & IMPACT COLLISIONS ---
+        let lastTime = performance.now();
+
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastTime) / 1000); // Frame delta time
+            lastTime = now;
+
+            // Clear Background with Day/Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+            skyGrad.addColorStop(0, '#0284c7');
+            skyGrad.addColorStop(0.5, '#38bdf8');
+            skyGrad.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            // Update & Render Background Clouds
+            if (clouds.length < 5) {
+                clouds.push({
+                    x: Math.random() * width,
+                    y: Math.random() * (height * 0.35),
+                    size: Math.random() * 60 + 40,
+                    speed: Math.random() * 15 + 5
+                });
+            }
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+            clouds.forEach(c => {
+                if (isPlaying && !isPaused) c.x += c.speed * dt;
+                if (c.x - c.size > width) c.x = -c.size;
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
+                ctx.arc(c.x + c.size * 0.5, c.y - c.size * 0.2, c.size * 0.7, 0, Math.PI * 2);
+                ctx.arc(c.x - c.size * 0.5, c.y - c.size * 0.1, c.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Powerlines and Wooden Poles
+            drawPowerLines(ctx, dt);
+
+            if (isPlaying && !isPaused) {
+                managePigeonSpawns(dt);
+
+                // Update & Render Pigeons
+                for (let i = pigeons.length - 1; i >= 0; i--) {
+                    const p = pigeons[i];
+                    p.update(dt);
+                    p.draw(ctx);
+
+                    // Clean up off-screen pigeons
+                    if (p.x < -100 || p.x > width + 100 || p.y > height + 100) {
+                        pigeons.splice(i, 1);
+                    }
+                }
+
+                // Draw Target Markers for active launched rocks
+                drawRockImpactReticles(ctx);
+
+                // Update & Render Rocks
+                for (let i = rocks.length - 1; i >= 0; i--) {
+                    const r = rocks[i];
+                    r.update(dt);
+                    r.draw(ctx);
+
+                    // Check Rock Impact upon reaching target plane (elapsed >= 1.2s)
+                    if (r.isDone) {
+                        const finalPos = r.currentPos;
+                        sound.playImpact();
+
+                        let hitAny = false;
+
+                        // Check wire bounce effect
+                        powerLines.forEach(line => {
+                            const lineY = getLineYAtX(line.lineIndex, finalPos.impactX);
+                            if (Math.abs(lineY - finalPos.impactY) < 25) {
+                                line.vibration = 20; // Trigger line bounce animation
+                            }
+                        });
+
+                        // Check pigeon collisions at impact coordinate
+                        for (let j = pigeons.length - 1; j >= 0; j--) {
+                            const pigeon = pigeons[j];
+                            if (pigeon.state === 'ALIVE') {
+                                const dx = pigeon.x - finalPos.impactX;
+                                const dy = pigeon.y - finalPos.impactY;
+                                const dist = Math.hypot(dx, dy);
+
+                                if (dist <= HIT_RADIUS + pigeon.hitRadius) {
+                                    hitAny = true;
+                                    hits++;
+
+                                    const destroyed = pigeon.takeDamage(1);
+
+                                    // Create feather particles
+                                    for (let k = 0; k < 18; k++) {
+                                        particles.push(new FeatherParticle(pigeon.x, pigeon.y, pigeon.type.color));
+                                    }
+
+                                    if (destroyed) {
+                                        const pts = pigeon.type.points * combo;
+                                        score += pts;
+
+                                        scorePopups.push(new FloatingText(pigeon.x, pigeon.y - 10, `+${pts} (x${combo})`));
+                                        sound.playHit(combo);
+
+                                        combo++;
+                                        if (combo > maxCombo) maxCombo = combo;
+                                        if (combo % 3 === 0) sound.playCombo();
+                                    } else {
+                                        // Armored hit sound & sparks
+                                        for (let k = 0; k < 8; k++) {
+                                            particles.push(new SparkParticle(pigeon.x, pigeon.y));
+                                        }
+                                        scorePopups.push(new FloatingText(pigeon.x, pigeon.y, `HELMET POP!`, '#94a3b8'));
+                                    }
+
+                                    updateHUD();
+                                    break; // Rock hits one target
+                                }
+                            }
+                        }
+
+                        // Reset combo on miss
+                        if (!hitAny) {
+                            combo = 1;
+                            updateHUD();
+                        }
+
+                        // Create ground/line splash spark particles
+                        for (let k = 0; k < 6; k++) {
+                            particles.push(new SparkParticle(finalPos.impactX, finalPos.impactY));
+                        }
+
+                        rocks.splice(i, 1);
+                    }
+                }
+
+                // Update & Render Particles
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const pt = particles[i];
+                    pt.update(dt);
+                    pt.draw(ctx);
+                    if (pt.life <= 0) particles.splice(i, 1);
+                }
+
+                // Update & Render Floating Score Text
+                for (let i = scorePopups.length - 1; i >= 0; i--) {
+                    const st = scorePopups[i];
+                    st.update(dt);
+                    st.draw(ctx);
+                    if (st.life <= 0) scorePopups.splice(i, 1);
+                }
+            } else {
+                // Render stationary elements when game start card is visible
+                pigeons.forEach(p => p.draw(ctx));
+            }
+
+            // Draw Crosshair Cursor on top
+            drawCrosshair(ctx);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- HIGH SCORE SYSTEM ---
+        // Scores are persisted by the Node server (server.js) in highscores.json,
+        // so they survive server restarts. If the page is opened without the
+        // server (file://), it falls back to browser localStorage.
+        const HighScores = {
+            // Where score submissions go. Leave '' when the game is served by
+            // server.js. When hosted on GitHub Pages, set this to your server URL,
+            // e.g. 'https://pigeon-patrol.onrender.com' - the server then commits the
+            // updated highscores.json back into the GitHub repo.
+            apiBase: '',
+            mode: 'unknown', // 'server' | 'static' | 'local'
+            entries: [],
+            limit: 10,
+
+            apiUrl() { return `${this.apiBase}/api/scores`; },
+
+            async load() {
+                // 1) live API (Node server, local or hosted)
+                try {
+                    const res = await fetch(this.apiUrl(), { headers: { 'Accept': 'application/json' } });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.entries = (data && Array.isArray(data.scores)) ? data.scores : [];
+                        this.mode = 'server';
+                        return this.entries;
+                    }
+                } catch (err) { /* try next source */ }
+
+                // 2) static highscores.json (e.g. served by GitHub Pages)
+                try {
+                    const res = await fetch(`highscores.json?t=${Date.now()}`, { cache: 'no-store' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const list = Array.isArray(data) ? data : (data && Array.isArray(data.scores) ? data.scores : []);
+                        this.entries = list.slice().sort((a, b) => b.score - a.score);
+                        this.mode = 'static';
+                        return this.entries;
+                    }
+                } catch (err) { /* try next source */ }
+
+                // 3) browser storage fallback
+                this.mode = 'local';
+                try {
+                    this.entries = JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]');
+                } catch (e) {
+                    this.entries = [];
+                }
+                return this.entries;
+            },
+
+            async submit(entry) {
+                // Always try the server first so the score reaches the shared board.
+                try {
+                    const res = await fetch(this.apiUrl(), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(entry)
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.entries = (data && Array.isArray(data.scores)) ? data.scores : this.entries;
+                        return this.entries;
+                    }
+                } catch (e) { /* server unreachable: keep a local copy */ }
+
+                this.mode = 'local';
+                this.entries.push(entry);
+                this.entries.sort((a, b) => b.score - a.score);
+                this.entries = this.entries.slice(0, 50);
+                try { localStorage.setItem('pigeonPatrolScores', JSON.stringify(this.entries)); } catch (e) {}
+                return this.entries;
+            },
+
+            qualifies(score) {
+                if (score <= 0) return false;
+                return this.entries.length < this.limit || score > this.entries[this.limit - 1].score;
+            },
+
+            top(n) { return this.entries.slice(0, n || this.limit); }
+        };
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function renderLeaderboard(elementId, highlight) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const list = HighScores.top(10);
+            if (!list.length) {
+                el.innerHTML = '<div class="text-slate-500 text-xs text-center py-3">No scores yet &mdash; be the first!</div>';
+                return;
+            }
+            el.innerHTML = list.map((e, i) => {
+                const isMe = highlight && e.name === highlight.name && e.score === highlight.score;
+                const rankColor = i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500';
+                return `
+                    <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg ${isMe ? 'bg-amber-500/15 border border-amber-500/40' : 'border border-transparent'}">
+                        <span class="w-5 text-right font-black font-mono text-xs ${rankColor}">${i + 1}</span>
+                        <span class="flex-1 text-left font-bold text-slate-200 text-sm truncate">${escapeHtml(e.name)}</span>
+                        <span class="text-[10px] text-slate-500 font-mono">${Number(e.hits || 0)} hits</span>
+                        <span class="font-mono font-black text-sm text-amber-400">${Number(e.score || 0).toLocaleString()}</span>
+                    </div>`;
+            }).join('');
+        }
+
+        // --- BUTTON BINDINGS ---
+        document.getElementById('startGameBtn').addEventListener('click', startGame);
+        document.getElementById('restartGameBtn').addEventListener('click', startGame);
+
+        document.getElementById('saveScoreBtn').addEventListener('click', async () => {
+            const input = document.getElementById('playerNameInput');
+            const name = (input.value.trim() || 'ACE').slice(0, 14);
+            const accuracy = totalShots > 0 ? Math.round((hits / totalShots) * 100) : 0;
+            const entry = { name: name.toUpperCase(), score, hits, accuracy, combo: maxCombo };
+            try { localStorage.setItem('pigeonPatrolLastName', name); } catch (e) {}
+            await HighScores.submit(entry);
+            document.getElementById('scoreSubmitBox').classList.add('hidden');
+            document.getElementById('scoreSavedNote').classList.remove('hidden');
+            document.getElementById('scoreSavedText').textContent = HighScores.mode === 'local'
+                ? 'Saved locally \u2014 score server unreachable'
+                : 'Score saved to the board!';
+            renderLeaderboard('gameOverLeaderboard', entry);
+            renderLeaderboard('startLeaderboard', entry);
+            sound.playCombo();
+        });
+
+        document.getElementById('playerNameInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('saveScoreBtn').click();
+        });
+
+        document.getElementById('audioBtn').addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            const icon = document.getElementById('audioIcon');
+            if (sound.enabled) {
+                icon.className = 'fa-solid fa-volume-high';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark';
+            }
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (!isPlaying) return;
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').innerHTML = isPaused ? 
+                '<i class="fa-solid fa-play"></i>' : 
+                '<i class="fa-solid fa-pause"></i>';
+        });
+
+        // Init Setup
+        handleInput();
+        initPowerLines();
+        HighScores.load().then(() => {
+            renderLeaderboard('startLeaderboard');
+            renderLeaderboard('gameOverLeaderboard');
+            const note = document.getElementById('scoreSourceNote');
+            if (note) {
+                note.textContent = HighScores.mode === 'server' ? 'live server'
+                    : HighScores.mode === 'static' ? 'highscores.json'
+                    : 'browser storage';
+            }
+        });
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
