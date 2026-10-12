@@ -22,5 +22,13 @@
     "accuracy": 73,
     "combo": 11,
     "date": "2026-10-12"
+  },
+  {
+    "name": "JACK!",
+    "score": 14750,
+    "hits": 24,
+    "accuracy": 75,
+    "combo": 7,
+    "date": "2026-10-12"
   }
 ]
