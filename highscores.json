@@ -56,6 +56,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "MADS",
+    "score": 42850,
+    "hits": 46,
+    "accuracy": 87,
+    "combo": 15,
+    "date": "2026-10-12"
+  },
+  {
     "name": "EPIC3000",
     "score": 42750,
     "hits": 32,
