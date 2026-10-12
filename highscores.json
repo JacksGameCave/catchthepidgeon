@@ -184,6 +184,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "USER",
+    "score": 72550,
+    "hits": 37,
+    "accuracy": 95,
+    "combo": 23,
+    "date": "2026-10-12"
+  },
+  {
     "name": "JACK",
     "score": 70400,
     "hits": 31,
