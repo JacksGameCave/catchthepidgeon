@@ -72,6 +72,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "MOBILE",
+    "score": 5950,
+    "hits": 26,
+    "accuracy": 34,
+    "combo": 3,
+    "date": "2026-10-12"
+  },
+  {
     "name": "ACE",
     "score": 3750,
     "hits": 24,
