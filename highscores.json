@@ -16,6 +16,14 @@
     "date": "2026-10-13"
   },
   {
+    "name": "MADS",
+    "score": 287200,
+    "hits": 42,
+    "accuracy": 98,
+    "combo": 39,
+    "date": "2026-10-13"
+  },
+  {
     "name": "JACK",
     "score": 286800,
     "hits": 36,
