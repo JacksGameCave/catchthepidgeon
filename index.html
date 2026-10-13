@@ -31,8 +31,8 @@
             touch-action: none;
         }
 
-        /* The modal is allowed to scroll on short screens (phones in landscape) */
-        #modalOverlay {
+        /* The modal & full-board viewer scroll on short screens (landscape phones) */
+        #modalOverlay, #fullBoardOverlay {
             touch-action: pan-y;
         }
 
@@ -51,7 +51,7 @@
             touch-action: pan-y;
         }
 
-        #gameCanvas, #modalOverlay {
+        #gameCanvas, #modalOverlay, #fullBoardOverlay {
             position: fixed;
             inset: 0;
             width: 100vw;
@@ -89,8 +89,8 @@
 </head>
 <body class="flex flex-col justify-between items-center select-none">
 
-    <!-- Top HUD Overlay -->
-    <div class="absolute top-0 left-0 right-0 p-4 md:p-6 z-20 flex justify-between items-start pointer-events-none">
+    <!-- Bottom HUD Overlay (keeps the top power line clear on mobile) -->
+    <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 z-20 flex justify-between items-end pointer-events-none">
         <!-- Left Stats (Score, Combo, Wind) -->
         <div class="flex flex-col gap-2">
             <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-3 px-5 text-white shadow-xl flex items-center gap-4 pointer-events-auto">
@@ -160,7 +160,7 @@
             <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 w-full mb-6 text-left text-xs text-slate-300 space-y-2">
                 <div class="flex items-center gap-2"><i class="fa-solid fa-crosshair text-amber-400"></i> <span><strong>Predict Flight:</strong> Target reticle shows where rock lands in 1.2s.</span></div>
                 <div class="flex items-center gap-2"><i class="fa-solid fa-wind text-sky-400"></i> <span><strong>Wind Factor:</strong> Crosswind drifts your rock off target.</span></div>
-                <div class="flex items-center gap-2"><i class="fa-solid fa-bolt text-emerald-400"></i> <span><strong>Pigeon Types:</strong> Doves fly fast, Armored birds need 2 hits!</span></div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-bolt text-emerald-400"></i> <span><strong>Pigeon Types:</strong> Doves fly fast, Armored birds need 2 hits, Carrier birds give +3 combo!</span></div>
             </div>
 
             <button id="startGameBtn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-lg rounded-2xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 cursor-pointer">
@@ -170,13 +170,21 @@
             <!-- High Score Board -->
             <div class="w-full mt-6">
                 <div class="flex items-center justify-between mb-2">
-                    <div class="text-xs font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
-                        <i class="fa-solid fa-ranking-star"></i> High Scores
+                    <div class="flex items-center gap-2">
+                        <div class="text-xs font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-ranking-star"></i> High Scores
+                        </div>
+                        <button id="viewFullBoardBtn" class="text-[9px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-300 border border-indigo-500/40 hover:border-indigo-400 rounded-lg px-2 py-1 transition active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-list-ol"></i> Full Board
+                        </button>
                     </div>
                     <span id="scoreSourceNote" class="text-[9px] uppercase tracking-wider text-slate-500 font-mono"></span>
                 </div>
                 <div id="startLeaderboard" class="lb-scroll bg-slate-800/60 border border-slate-700/50 rounded-2xl p-2 space-y-1 max-h-44 overflow-y-auto">
                     <div class="text-slate-500 text-xs text-center py-2">Loading...</div>
+                </div>
+                <div id="myBestLine" class="mt-2 text-[11px] text-slate-400 text-center hidden">
+                    Your best: <span id="myBestText" class="text-amber-400 font-bold"></span>
                 </div>
             </div>
         </div>
@@ -211,8 +219,8 @@
             <!-- High Score Entry -->
             <div id="scoreSubmitBox" class="w-full mb-4 hidden">
                 <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left">
-                    <div class="text-xs font-black uppercase tracking-widest text-amber-400 mb-1">
-                        <i class="fa-solid fa-star"></i> NEW HIGH SCORE!
+                    <div id="scoreSubmitLabel" class="text-xs font-black uppercase tracking-widest text-amber-400 mb-1">
+                        <i class="fa-solid fa-star"></i> TOP 1000 SCORE!
                     </div>
                     <p class="text-[11px] text-slate-400 mb-3">Enter your name to claim a spot on the board:</p>
                     <div class="flex gap-2">
@@ -237,7 +245,7 @@
                     <div class="text-xs font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
                         <i class="fa-solid fa-ranking-star"></i> Leaderboard
                     </div>
-                    <span class="text-[9px] uppercase tracking-wider text-slate-500 font-mono">top 10</span>
+                    <span class="text-[9px] uppercase tracking-wider text-slate-500 font-mono">top 10 of 1000</span>
                 </div>
                 <div id="gameOverLeaderboard" class="lb-scroll bg-slate-800/60 border border-slate-700/50 rounded-2xl p-2 space-y-1 max-h-48 overflow-y-auto">
                     <div class="text-slate-500 text-xs text-center py-2">Loading...</div>
@@ -247,6 +255,24 @@
             <button id="restartGameBtn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-lg rounded-2xl shadow-lg shadow-emerald-500/20 transition transform active:scale-95 cursor-pointer">
                 PLAY AGAIN
             </button>
+        </div>
+    </div>
+
+    <!-- Full Leaderboard Overlay (top 1000) -->
+    <div id="fullBoardOverlay" class="fixed inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex justify-center overflow-y-auto p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-md w-full my-auto shadow-2xl flex flex-col max-h-[90dvh]">
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-sm font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+                    <i class="fa-solid fa-trophy"></i> Full Leaderboard
+                </div>
+                <button id="closeFullBoardBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition active:scale-95 cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="fullBoardMeta" class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">Top 1000</div>
+            <div id="fullBoardList" class="lb-scroll overflow-y-auto space-y-0.5 pr-1">
+                <div class="text-slate-500 text-xs text-center py-4">Loading...</div>
+            </div>
         </div>
     </div>
 
@@ -574,10 +600,22 @@
         // --- PIGEON TYPES & CLASS ---
         const PIGEON_TYPES = {
             STANDARD: { name: 'Standard Pigeon', points: 100, speed: 120, color: '#94a3b8', headColor: '#64748b', health: 1, scale: 1 },
-            DOVE: { name: 'Speedy Dove', points: 250, speed: 260, color: '#f8fafc', headColor: '#e2e8f0', health: 1, scale: 0.85 },
+            DOVE: { name: 'Speedy Dove', points: 1000, speed: 260, color: '#f8fafc', headColor: '#e2e8f0', health: 1, scale: 0.85 },
             GOLDEN: { name: 'Golden Pigeon', points: 500, speed: 180, color: '#f59e0b', headColor: '#fbbf24', health: 1, scale: 1.1 },
-            ARMORED: { name: 'Helmet Pigeon', points: 300, speed: 90, color: '#475569', headColor: '#94a3b8', health: 2, scale: 1.15 }
+            ARMORED: { name: 'Helmet Pigeon', points: 300, speed: 100, color: '#475569', headColor: '#94a3b8', health: 2, scale: 1.15 },
+            CARRIER: { name: 'Carrier Pigeon', points: 100, speed: 235, color: '#f8fafc', headColor: '#94a3b8', health: 1, scale: 1, comboBonus: 3 }
         };
+
+        // Letter colours a Carrier Pigeon can carry
+        const LETTER_COLORS = [
+            '#166534', // dark green
+            '#38bdf8', // light blue
+            '#ef4444', // bright red
+            '#2dd4bf', // turquoise
+            '#a855f7', // purple
+            '#fbbf24', // gold
+            '#cbd5e1'  // silver
+        ];
 
         class Pigeon {
             constructor(typeKey, isPerched = false) {
@@ -585,6 +623,11 @@
                 this.typeKey = typeKey;
                 this.isPerched = isPerched;
                 this.health = this.type.health;
+
+                // Carrier Pigeon totes a letter; its colour is random per bird
+                this.letterColor = typeKey === 'CARRIER'
+                    ? LETTER_COLORS[Math.floor(Math.random() * LETTER_COLORS.length)]
+                    : null;
 
                 this.x = 0;
                 this.y = 0;
@@ -702,6 +745,20 @@
                 ctx.lineTo(22, headY + 1);
                 ctx.lineTo(16, headY + 4);
                 ctx.fill();
+
+                // Letter carried in the beak (Carrier Pigeon)
+                if (this.letterColor) {
+                    ctx.fillStyle = this.letterColor;
+                    ctx.fillRect(20, headY - 3, 16, 11);
+                    // envelope flap
+                    ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(20, headY - 3);
+                    ctx.lineTo(28, headY + 3);
+                    ctx.lineTo(36, headY - 3);
+                    ctx.stroke();
+                }
 
                 // Eye
                 ctx.fillStyle = '#ffffff';
@@ -997,9 +1054,10 @@
                 if (Math.random() < 0.02) {
                     const roll = Math.random();
                     let typeKey = 'STANDARD';
-                    if (roll > 0.85) typeKey = 'GOLDEN';
-                    else if (roll > 0.60) typeKey = 'DOVE';
-                    else if (roll > 0.40) typeKey = 'ARMORED';
+                    if (roll > 0.88) typeKey = 'GOLDEN';
+                    else if (roll > 0.68) typeKey = 'DOVE';
+                    else if (roll > 0.52) typeKey = 'ARMORED';
+                    else if (roll > 0.38) typeKey = 'CARRIER';
 
                     pigeons.push(new Pigeon(typeKey, false));
                 }
@@ -1073,8 +1131,10 @@
             await HighScores.load();
             const madeBoard = HighScores.qualifies(score);
             document.getElementById('gameOverSub').innerText = madeBoard
-                ? 'You made the leaderboard \u2014 claim your spot!'
-                : 'Great marksmanship out there!';
+                ? 'You made the top 1000 \u2014 claim your spot!'
+                : score > 0
+                    ? 'Not quite the top 1000 this time \u2014 try again!'
+                    : 'Great marksmanship out there!';
 
             renderLeaderboard('gameOverLeaderboard');
             const submitBox = document.getElementById('scoreSubmitBox');
@@ -1082,6 +1142,11 @@
             if (madeBoard) {
                 submitBox.classList.remove('hidden');
                 savedNote.classList.add('hidden');
+                const lastShown = HighScores.entries[HighScores.entries.length - 1];
+                const isTopTen = HighScores.total < 10 || !lastShown || score > lastShown.score;
+                document.getElementById('scoreSubmitLabel').innerHTML = isTopTen
+                    ? '<i class="fa-solid fa-star"></i> NEW TOP 10 SCORE!'
+                    : '<i class="fa-solid fa-ranking-star"></i> TOP 1000 SCORE!';
                 const nameInput = document.getElementById('playerNameInput');
                 nameInput.value = localStorage.getItem('pigeonPatrolLastName') || '';
                 setTimeout(() => nameInput.focus(), 250);
@@ -1196,9 +1261,10 @@
                                         scorePopups.push(new FloatingText(pigeon.x, pigeon.y - 10, `+${pts} (x${combo})`));
                                         sound.playHit(combo);
 
-                                        combo++;
+                                        const comboBonus = pigeon.type.comboBonus || 1;
+                                        combo += comboBonus;
                                         if (combo > maxCombo) maxCombo = combo;
-                                        if (combo % 3 === 0) sound.playCombo();
+                                        if (comboBonus > 1 || combo % 3 === 0) sound.playCombo();
                                     } else {
                                         // Armored hit sound & sparks
                                         for (let k = 0; k < 8; k++) {
@@ -1266,8 +1332,12 @@
             // updated highscores.json back into the GitHub repo.
             apiBase: 'https://catchthepigeon.onrender.com',
             mode: 'unknown', // 'server' | 'static' | 'local'
-            entries: [],
-            limit: 10,
+            entries: [],     // top scores for display
+            total: 0,        // how many scores are on the board
+            cutoff: null,    // score of 1000th place; null while the board isn't full
+            lastRank: null,  // rank earned by the most recent saved score
+            limit: 10,       // rows shown in the UI
+            cap: 1000,       // board capacity - anyone in the top 1000 can save
 
             apiUrls() {
                 // Same-origin first (served by server.js), then the configured
@@ -1275,6 +1345,23 @@
                 const bases = [''];
                 if (this.apiBase) bases.push(this.apiBase.replace(/\/+$/, ''));
                 return bases.map(b => `${b}/api/scores`);
+            },
+
+            // Take an API payload: top rows for display + board size info
+            applyPayload(data) {
+                this.entries = (data && Array.isArray(data.scores)) ? data.scores : [];
+                this.total = (data && Number.isFinite(data.total)) ? data.total : this.entries.length;
+                this.cutoff = (data && typeof data.cutoff === 'number') ? data.cutoff : null;
+                return this.entries;
+            },
+
+            // Take a full list (static file / browser storage)
+            setFullList(list) {
+                const sorted = list.slice().sort((a, b) => b.score - a.score);
+                this.total = sorted.length;
+                this.cutoff = sorted.length >= this.cap ? sorted[this.cap - 1].score : null;
+                this.entries = sorted.slice(0, this.limit);
+                return this.entries;
             },
 
             async load() {
@@ -1285,9 +1372,8 @@
                         if (res.ok) {
                             const data = await res.json();
                             if (data && Array.isArray(data.scores)) {
-                                this.entries = data.scores;
                                 this.mode = 'server';
-                                return this.entries;
+                                return this.applyPayload(data);
                             }
                         }
                     } catch (err) { /* try next source */ }
@@ -1299,20 +1385,18 @@
                     if (res.ok) {
                         const data = await res.json();
                         const list = Array.isArray(data) ? data : (data && Array.isArray(data.scores) ? data.scores : []);
-                        this.entries = list.slice().sort((a, b) => b.score - a.score);
                         this.mode = 'static';
-                        return this.entries;
+                        return this.setFullList(list);
                     }
                 } catch (err) { /* try next source */ }
 
                 // 3) browser storage fallback
                 this.mode = 'local';
                 try {
-                    this.entries = JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]');
+                    return this.setFullList(JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]'));
                 } catch (e) {
-                    this.entries = [];
+                    return this.setFullList([]);
                 }
-                return this.entries;
             },
 
             async submit(entry) {
@@ -1326,23 +1410,59 @@
                         });
                         if (res.ok) {
                             const data = await res.json();
-                            this.entries = (data && Array.isArray(data.scores)) ? data.scores : this.entries;
-                            return this.entries;
+                            if (data && Array.isArray(data.scores)) {
+                                this.mode = 'server';
+                                this.lastRank = Number.isFinite(data.rank) ? data.rank : null;
+                                return this.applyPayload(data);
+                            }
                         }
                     } catch (e) { /* try next source */ }
                 }
 
+                // Local fallback: keep the board in browser storage
                 this.mode = 'local';
-                this.entries.push(entry);
-                this.entries.sort((a, b) => b.score - a.score);
-                this.entries = this.entries.slice(0, 50);
-                try { localStorage.setItem('pigeonPatrolScores', JSON.stringify(this.entries)); } catch (e) {}
-                return this.entries;
+                let full = [];
+                try { full = JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]'); } catch (e) {}
+                full.push(entry);
+                full.sort((a, b) => b.score - a.score);
+                full = full.slice(0, this.cap);
+                try { localStorage.setItem('pigeonPatrolScores', JSON.stringify(full)); } catch (e) {}
+                const idx = full.indexOf(entry);
+                this.lastRank = idx >= 0 ? idx + 1 : null;
+                return this.setFullList(full);
             },
 
             qualifies(score) {
                 if (score <= 0) return false;
-                return this.entries.length < this.limit || score > this.entries[this.limit - 1].score;
+                return this.total < this.cap || this.cutoff === null || score > this.cutoff;
+            },
+
+            // Full board (up to 1000 rows) for the leaderboard viewer
+            async fetchFull() {
+                for (const url of this.apiUrls()) {
+                    try {
+                        const res = await fetch(`${url}?all=1`, { headers: { 'Accept': 'application/json' } });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && Array.isArray(data.scores)) {
+                                return data.scores.slice().sort((a, b) => b.score - a.score);
+                            }
+                        }
+                    } catch (err) { /* try next source */ }
+                }
+                try {
+                    const res = await fetch(`highscores.json?t=${Date.now()}`, { cache: 'no-store' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const list = Array.isArray(data) ? data : (data && Array.isArray(data.scores) ? data.scores : []);
+                        return list.slice().sort((a, b) => b.score - a.score);
+                    }
+                } catch (err) { /* try next source */ }
+                try {
+                    return JSON.parse(localStorage.getItem('pigeonPatrolScores') || '[]');
+                } catch (e) {
+                    return [];
+                }
             },
 
             top(n) { return this.entries.slice(0, n || this.limit); }
@@ -1354,7 +1474,28 @@
             }[c]));
         }
 
-        function renderLeaderboard(elementId, highlight) {
+        // 1 -> "1st", 55 -> "55th"
+        function ordinal(n) {
+            const suffixes = ['th', 'st', 'nd', 'rd'];
+            const v = n % 100;
+            return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+        }
+
+        function updateBestLine() {
+            let best = null;
+            try { best = JSON.parse(localStorage.getItem('pigeonPatrolBest') || 'null'); } catch (e) {}
+            const line = document.getElementById('myBestLine');
+            if (!line) return;
+            if (best && best.score > 0) {
+                document.getElementById('myBestText').textContent =
+                    `${ordinal(best.rank)} place \u2014 ${Number(best.score).toLocaleString()} pts`;
+                line.classList.remove('hidden');
+            } else {
+                line.classList.add('hidden');
+            }
+        }
+
+        function renderLeaderboard(elementId, highlight, extra) {
             const el = document.getElementById(elementId);
             if (!el) return;
             const list = HighScores.top(10);
@@ -1362,7 +1503,7 @@
                 el.innerHTML = '<div class="text-slate-500 text-xs text-center py-3">No scores yet &mdash; be the first!</div>';
                 return;
             }
-            el.innerHTML = list.map((e, i) => {
+            const rows = list.map((e, i) => {
                 const isMe = highlight && e.name === highlight.name && e.score === highlight.score;
                 const rankColor = i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500';
                 return `
@@ -1372,7 +1513,20 @@
                         <span class="text-[10px] text-slate-500 font-mono">${Number(e.hits || 0)} hits</span>
                         <span class="font-mono font-black text-sm text-amber-400">${Number(e.score || 0).toLocaleString()}</span>
                     </div>`;
-            }).join('');
+            });
+
+            // If the player placed outside the visible top 10, show their row too
+            if (extra && extra.rank && extra.rank > list.length && extra.entry) {
+                rows.push(`
+                    <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40">
+                        <span class="w-5 text-right font-black font-mono text-xs text-amber-400">${extra.rank}</span>
+                        <span class="flex-1 text-left font-bold text-amber-300 text-sm truncate">${escapeHtml(extra.entry.name)} (you)</span>
+                        <span class="text-[10px] text-slate-500 font-mono">${Number(extra.entry.hits || 0)} hits</span>
+                        <span class="font-mono font-black text-sm text-amber-400">${Number(extra.entry.score || 0).toLocaleString()}</span>
+                    </div>`);
+            }
+
+            el.innerHTML = rows.join('');
         }
 
         // --- BUTTON BINDINGS ---
@@ -1386,18 +1540,83 @@
             const entry = { name: name.toUpperCase(), score, hits, accuracy, combo: maxCombo };
             try { localStorage.setItem('pigeonPatrolLastName', name); } catch (e) {}
             await HighScores.submit(entry);
+
+            const rank = HighScores.lastRank;
             document.getElementById('scoreSubmitBox').classList.add('hidden');
             document.getElementById('scoreSavedNote').classList.remove('hidden');
-            document.getElementById('scoreSavedText').textContent = HighScores.mode === 'local'
-                ? 'Saved locally \u2014 score server unreachable'
-                : 'Score saved to the board!';
-            renderLeaderboard('gameOverLeaderboard', entry);
-            renderLeaderboard('startLeaderboard', entry);
+            const placeText = rank ? ` You placed ${ordinal(rank)} of ${HighScores.total}.` : '';
+            document.getElementById('scoreSavedText').textContent =
+                HighScores.mode === 'local'
+                    ? `Saved locally \u2014 score server unreachable.${placeText}`
+                    : `Score saved!${placeText}`;
+
+            renderLeaderboard('gameOverLeaderboard', entry, { entry, rank });
+            renderLeaderboard('startLeaderboard', entry, { entry, rank });
+
+            // Remember the personal best for the main menu
+            if (rank) {
+                let best = null;
+                try { best = JSON.parse(localStorage.getItem('pigeonPatrolBest') || 'null'); } catch (e) {}
+                if (!best || entry.score > best.score) {
+                    try { localStorage.setItem('pigeonPatrolBest', JSON.stringify({ name: entry.name, score: entry.score, rank })); } catch (e) {}
+                }
+                updateBestLine();
+            }
+
             sound.playCombo();
         });
 
         document.getElementById('playerNameInput').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') document.getElementById('saveScoreBtn').click();
+        });
+
+        // --- FULL LEADERBOARD VIEWER ---
+        async function openFullBoard() {
+            const overlay = document.getElementById('fullBoardOverlay');
+            const listEl = document.getElementById('fullBoardList');
+            overlay.classList.remove('hidden');
+            listEl.innerHTML = '<div class="text-slate-500 text-xs text-center py-4">Loading...</div>';
+
+            const all = await HighScores.fetchFull();
+            document.getElementById('fullBoardMeta').textContent =
+                all.length ? `${all.length} ${all.length === 1 ? 'entry' : 'entries'}` : 'No entries yet';
+
+            if (!all.length) {
+                listEl.innerHTML = '<div class="text-slate-500 text-xs text-center py-4">No scores yet \u2014 be the first!</div>';
+                return;
+            }
+
+            let best = null;
+            try { best = JSON.parse(localStorage.getItem('pigeonPatrolBest') || 'null'); } catch (e) {}
+
+            listEl.innerHTML = all.map((e, i) => {
+                const isMe = best && e.name === best.name && e.score === best.score;
+                const rankColor = i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500';
+                return `
+                    <div class="flex items-center gap-2 px-2 py-1 rounded-lg ${isMe ? 'bg-amber-500/15 border border-amber-500/40' : 'border border-transparent'}">
+                        <span class="w-8 text-right font-black font-mono text-xs ${rankColor}">${i + 1}</span>
+                        <span class="flex-1 text-left font-bold text-slate-200 text-xs truncate">${escapeHtml(e.name)}</span>
+                        <span class="text-[9px] text-slate-500 font-mono">${Number(e.hits || 0)} hits</span>
+                        <span class="font-mono font-black text-xs text-amber-400">${Number(e.score || 0).toLocaleString()}</span>
+                    </div>`;
+            }).join('');
+
+            // Bring the player's own row into view
+            const meRow = listEl.querySelector('.bg-amber-500\\/15');
+            if (meRow) meRow.scrollIntoView({ block: 'center' });
+        }
+
+        function closeFullBoard() {
+            document.getElementById('fullBoardOverlay').classList.add('hidden');
+        }
+
+        document.getElementById('viewFullBoardBtn').addEventListener('click', openFullBoard);
+        document.getElementById('closeFullBoardBtn').addEventListener('click', closeFullBoard);
+        document.getElementById('fullBoardOverlay').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeFullBoard(); // click backdrop
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeFullBoard();
         });
 
         document.getElementById('audioBtn').addEventListener('click', () => {
@@ -1424,6 +1643,7 @@
         HighScores.load().then(() => {
             renderLeaderboard('startLeaderboard');
             renderLeaderboard('gameOverLeaderboard');
+            updateBestLine();
             const note = document.getElementById('scoreSourceNote');
             if (note) {
                 note.textContent = HighScores.mode === 'server' ? 'live server'

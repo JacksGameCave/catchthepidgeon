@@ -295,9 +295,14 @@ function scoreboardPayload(scores) {
     };
 }
 
-async function handleScoresGet(res) {
+async function handleScoresGet(res, query) {
     const scores = await readScores();
-    sendJSON(res, 200, scoreboardPayload(scores));
+    const payload = scoreboardPayload(scores);
+    // ?all=1 returns the whole board (top 1000) for the full leaderboard view
+    if (/(^|&)all=1(&|$)/.test(query || '')) {
+        payload.scores = scores.slice(0, MAX_STORED);
+    }
+    sendJSON(res, 200, payload);
 }
 
 async function handleScoresPost(req, res) {
@@ -356,7 +361,7 @@ const server = http.createServer((req, res) => {
     }
 
     if (urlPath === '/api/scores') {
-        if (req.method === 'GET') return handleScoresGet(res);
+        if (req.method === 'GET') return handleScoresGet(res, (req.url || '').split('?')[1] || '');
         if (req.method === 'POST') return handleScoresPost(req, res);
         sendJSON(res, 405, { error: 'method not allowed' });
         return;
