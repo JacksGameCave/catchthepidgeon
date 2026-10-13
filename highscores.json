@@ -1,5 +1,13 @@
 [
   {
+    "name": "JACK",
+    "score": 537500,
+    "hits": 62,
+    "accuracy": 98,
+    "combo": 61,
+    "date": "2026-10-13"
+  },
+  {
     "name": "CALLUM",
     "score": 398900,
     "hits": 57,
