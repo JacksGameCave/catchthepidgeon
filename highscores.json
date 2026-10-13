@@ -800,6 +800,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "JACK",
+    "score": 4750,
+    "hits": 23,
+    "accuracy": 49,
+    "combo": 7,
+    "date": "2026-10-13"
+  },
+  {
     "name": "ACE",
     "score": 3750,
     "hits": 24,
