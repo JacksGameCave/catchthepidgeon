@@ -17,6 +17,14 @@
   },
   {
     "name": "MADS",
+    "score": 347900,
+    "hits": 35,
+    "accuracy": 95,
+    "combo": 46,
+    "date": "2026-10-13"
+  },
+  {
+    "name": "MADS",
     "score": 339100,
     "hits": 43,
     "accuracy": 100,
