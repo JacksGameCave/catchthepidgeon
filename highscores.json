@@ -488,6 +488,14 @@
     "date": "2026-10-13"
   },
   {
+    "name": "JACK",
+    "score": 37000,
+    "hits": 33,
+    "accuracy": 77,
+    "combo": 12,
+    "date": "2026-10-13"
+  },
+  {
     "name": "BRETT",
     "score": 36700,
     "hits": 33,
