@@ -242,8 +242,13 @@
             <!-- Leaderboard -->
             <div id="gameOverLeaderboardWrap" class="w-full mb-5">
                 <div class="flex items-center justify-between mb-2">
-                    <div class="text-xs font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
-                        <i class="fa-solid fa-ranking-star"></i> Leaderboard
+                    <div class="flex items-center gap-2">
+                        <div class="text-xs font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+                            <i class="fa-solid fa-ranking-star"></i> Leaderboard
+                        </div>
+                        <button id="viewFullBoardBtnGameOver" class="text-[9px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-300 border border-indigo-500/40 hover:border-indigo-400 rounded-lg px-2 py-1 transition active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-list-ol"></i> Full Board
+                        </button>
                     </div>
                     <span class="text-[9px] uppercase tracking-wider text-slate-500 font-mono">top 10 of 1000</span>
                 </div>
@@ -1611,6 +1616,7 @@
         }
 
         document.getElementById('viewFullBoardBtn').addEventListener('click', openFullBoard);
+        document.getElementById('viewFullBoardBtnGameOver').addEventListener('click', openFullBoard);
         document.getElementById('closeFullBoardBtn').addEventListener('click', closeFullBoard);
         document.getElementById('fullBoardOverlay').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) closeFullBoard(); // click backdrop
