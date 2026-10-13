@@ -862,5 +862,13 @@
     "accuracy": 23,
     "combo": 4,
     "date": "2026-10-12"
+  },
+  {
+    "name": "UH!",
+    "score": 1600,
+    "hits": 4,
+    "accuracy": 44,
+    "combo": 4,
+    "date": "2026-10-13"
   }
 ]
