@@ -544,6 +544,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "JACK",
+    "score": 42900,
+    "hits": 35,
+    "accuracy": 71,
+    "combo": 15,
+    "date": "2026-10-13"
+  },
+  {
     "name": "MADS",
     "score": 42850,
     "hits": 46,
