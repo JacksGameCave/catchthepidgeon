@@ -576,6 +576,14 @@
     "date": "2026-10-12"
   },
   {
+    "name": "MAP",
+    "score": 67200,
+    "hits": 29,
+    "accuracy": 94,
+    "combo": 33,
+    "date": "2026-10-14"
+  },
+  {
     "name": "JACK",
     "score": 65500,
     "hits": 31,
