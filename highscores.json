@@ -209,6 +209,14 @@
   },
   {
     "name": "JACK",
+    "score": 202000,
+    "hits": 50,
+    "accuracy": 94,
+    "combo": 27,
+    "date": "2026-10-14"
+  },
+  {
+    "name": "JACK",
     "score": 191700,
     "hits": 33,
     "accuracy": 97,
