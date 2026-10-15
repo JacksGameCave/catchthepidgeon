@@ -1,6 +1,14 @@
 [
   {
     "name": "CALLUM",
+    "score": 636500,
+    "hits": 59,
+    "accuracy": 100,
+    "combo": 60,
+    "date": "2026-10-15"
+  },
+  {
+    "name": "CALLUM",
     "score": 586100,
     "hits": 60,
     "accuracy": 100,
