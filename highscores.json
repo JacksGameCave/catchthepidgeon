@@ -48,6 +48,14 @@
     "date": "2026-10-14"
   },
   {
+    "name": "MADS",
+    "score": 415500,
+    "hits": 45,
+    "accuracy": 98,
+    "combo": 48,
+    "date": "2026-10-15"
+  },
+  {
     "name": "ACE",
     "score": 413800,
     "hits": 53,
