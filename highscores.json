@@ -104,6 +104,14 @@
     "date": "2026-10-13"
   },
   {
+    "name": "MADS",
+    "score": 389800,
+    "hits": 48,
+    "accuracy": 98,
+    "combo": 47,
+    "date": "2026-10-15"
+  },
+  {
     "name": "STACY",
     "score": 384100,
     "hits": 51,
